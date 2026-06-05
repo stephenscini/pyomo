@@ -49,6 +49,8 @@ def clone_shallow_active_flat(m1: _BlockData, num_clones: int = 1) -> List[_Bloc
         m1, pe.Constraint, active=True, descend_into=True
     ):
         repn = generate_standard_repn(c.body, quadratic=False, compute_values=True)
+        if len(repn.linear_vars) == 0 and len(repn.nonlinear_vars) == 0:
+            continue
         all_vars.update(repn.linear_vars)
         all_vars.update(repn.nonlinear_vars)
         body = repn.to_expression()
