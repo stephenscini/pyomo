@@ -1,13 +1,11 @@
-#  ___________________________________________________________________________
+# ____________________________________________________________________________________
 #
-#  Pyomo: Python Optimization Modeling Objects
-#  Copyright (c) 2008-2025
-#  National Technology and Engineering Solutions of Sandia, LLC
-#  Under the terms of Contract DE-NA0003525 with National Technology and
-#  Engineering Solutions of Sandia, LLC, the U.S. Government retains certain
-#  rights in this software.
-#  This software is distributed under the 3-clause BSD License.
-#  ___________________________________________________________________________
+# Pyomo: Python Optimization Modeling Objects
+# Copyright (c) 2008-2026 National Technology and Engineering Solutions of Sandia, LLC
+# Under the terms of Contract DE-NA0003525 with National Technology and Engineering
+# Solutions of Sandia, LLC, the U.S. Government retains certain rights in this
+# software.  This software is distributed under the 3-clause BSD License.
+# ____________________________________________________________________________________
 
 from io import StringIO
 from typing import Sequence, Dict, Optional, Mapping, MutableMapping
@@ -23,7 +21,7 @@ from pyomo.core.base.var import Var
 from pyomo.common import unittest
 
 
-class SolutionLoaderExample(solution_loader.SolutionLoaderBase):
+class SolutionLoaderExample(solution_loader.SolutionLoader):
     """
     This is an example instantiation of a SolutionLoader that is used for
     testing generated results.
