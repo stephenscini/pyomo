@@ -50,9 +50,9 @@ def clone_shallow_active_flat(m1: _BlockData, num_clones: int = 1) -> List[_Bloc
     ):
         repn = generate_standard_repn(c.body, quadratic=False, compute_values=True)
         if len(repn.linear_vars) == 0 and len(repn.nonlinear_vars) == 0:
-            if c.lb is not None and c.lb > pe.value(c.body):
+            if c.lb is not None and c.lb > repn.constant:
                 raise RuntimeError('trivially infeasible constraint')
-            if c.ub is not None and c.ub < pe.value(c.body):
+            if c.ub is not None and c.ub < repn.constant:
                 raise RuntimeError('trivially infeasible constraint')
             continue
         all_vars.update(repn.linear_vars)
