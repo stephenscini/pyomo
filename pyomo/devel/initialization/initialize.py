@@ -157,7 +157,6 @@ def initialize_with_piecewise_linear_approximation(
         _cleanup(orig_var_data)
 
         # Try final nlp solve
-
         # solve the original problem from the initialized solution
         nlp_res = nlp_solver.solve(
             nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
@@ -171,8 +170,7 @@ def initialize_with_piecewise_linear_approximation(
         else:
             logger.warning('initialization was not successful via LP approximation')
 
-    # return nlp_res
-    return res
+    return nlp_res
 
 
 def initialize_with_LP_approximation(
