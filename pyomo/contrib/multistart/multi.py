@@ -120,6 +120,13 @@ class MultiStart:
             description="Tolerance on HCS objective value equality. Defaults to Python float equality precision.",
         ),
     )
+    CONFIG.declare(
+        "seed",
+        ConfigValue(
+            default=None,
+            description="Seed for reproducibility in random sampling methods"
+        )
+    )
 
     def available(self, exception_flag=True):
         """Check if solver is available.
@@ -149,14 +156,14 @@ class MultiStart:
             raise RuntimeError(
                 "Multistart solver is unable to handle model with multiple active objectives."
             )
-        if obj is None:
-            raise RuntimeError(
-                "Multistart solver is unable to handle model with no active objective."
-            )
-        if obj.polynomial_degree() == 0:
-            raise RuntimeError(
-                "Multistart solver received model with constant objective"
-            )
+        # if obj is None:
+        #     raise RuntimeError(
+        #         "Multistart solver is unable to handle model with no active objective."
+        #     )
+        # if obj.polynomial_degree() == 0:
+        #     raise RuntimeError(
+        #         "Multistart solver received model with constant objective"
+        #     )
 
         # store objective values and objective/result information for best
         # solution obtained
