@@ -404,6 +404,6 @@ def initialize_with_multistart_opt(
         if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
             nlp_res.solution_loader.load_vars()
         else:
-            logger.warning('initialization was not successful via global optimization')
+            logger.warning('initialization was not successful via multistart optimization')
 
     return nlp_res
