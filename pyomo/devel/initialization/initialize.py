@@ -155,22 +155,25 @@ def initialize_with_piecewise_linear_approximation(
         )
     finally:
         _cleanup(orig_var_data)
-        # Try final nlp solve
 
-        # solve the original problem from the initialized solution
-        nlp_res = nlp_solver.solve(
-            nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
-        )
-        logger.info(
-            f'solved NLP: {nlp_res.solution_status}, {nlp_res.termination_condition}'
-        )
+        # Commented out while I fix testing
+        # # Try final nlp solve
 
-        if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            nlp_res.solution_loader.load_vars()
-        else:
-            logger.warning('initialization was not successful via LP approximation')
+        # # solve the original problem from the initialized solution
+        # nlp_res = nlp_solver.solve(
+        #     nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
+        # )
+        # logger.info(
+        #     f'solved NLP: {nlp_res.solution_status}, {nlp_res.termination_condition}'
+        # )
 
-    return nlp_res
+        # if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+        #     nlp_res.solution_loader.load_vars()
+        # else:
+        #     logger.warning('initialization was not successful via LP approximation')
+
+    # return nlp_res
+    return res
 
 
 def initialize_with_LP_approximation(
@@ -320,14 +323,15 @@ def initialize_with_global_opt(
     finally:
         _cleanup(orig_var_data)
 
-        res = nlp_solver.solve(
+        nlp_res = nlp_solver.solve(
             nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
         )
         logger.info(
-            f'solved NLP with {nlp_solver.name}: {res.solution_status}, {res.termination_condition}'
+            f'solved NLP with {nlp_solver.name}: {nlp_res.solution_status}, {nlp_res.termination_condition}'
         )
-        if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            res.solution_loader.load_vars()
+        if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            nlp_res.solution_loader.load_vars()
         else:
             logger.warning('initialization was not successful via global optimization')
-    return res
+
+    return nlp_res
