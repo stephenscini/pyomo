@@ -17,6 +17,7 @@ from pyomo.common.config import (
     document_kwargs_from_configdict,
 )
 from pyomo.common.modeling import unique_component_name
+from pyomo.common.dependencies import numpy as np
 from pyomo.contrib.multistart.high_conf_stop import should_stop
 from pyomo.contrib.multistart.reinit import reinitialize_variables, strategies
 from pyomo.core import Objective, Var, minimize, value
@@ -127,6 +128,14 @@ class MultiStart:
             description="Seed for reproducibility in random sampling methods"
         )
     )
+    CONFIG.declare(
+        "rng",
+        ConfigValue(
+            default=None,
+            description="Random number generator for reproducibility in random sampling methods." \
+                "Preferred over seed."
+        )
+    )
 
     def available(self, exception_flag=True):
         """Check if solver is available.
@@ -144,6 +153,9 @@ class MultiStart:
         # initialize keyword args
         config = self.CONFIG(kwds.pop('options', {}))
         config.set_value(kwds)
+        
+        if config.rng is None:
+            config.rng = np.random.default_rng(config.seed)
 
         # initialize the solver
         solver = SolverFactory(config.solver)
@@ -211,11 +223,12 @@ class MultiStart:
                 ):
                     HCS_completed = True
                     break
+                print(f"num_iter: {num_iter}\n")
                 num_iter += 1
                 # at first iteration, solve the originally passed model
                 m = model.clone() if num_iter > 1 else model
                 reinitialize_variables(m, config)
-                result = solver.solve(m, **config.solver_args)
+                result = solver.solve(m, **config.solver_args, ) # tee = True)
                 if (
                     result.solver.status is SolverStatus.ok
                     and result.solver.termination_condition is tc.optimal

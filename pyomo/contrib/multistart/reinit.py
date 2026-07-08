@@ -11,6 +11,7 @@
 
 import logging
 import random
+from pyomo.common.dependencies import numpy as np
 from pyomo.common.dependencies.scipy import stats
 from pyomo.core.expr.visitor import (
     identify_variables,
@@ -21,8 +22,10 @@ from pyomo.core import Var
 logger = logging.getLogger('pyomo.contrib.multistart')
 
 
-def rand(val, lb, ub):
-    return random.uniform(lb, ub)  # uniform distribution between lb and ub
+def rand(val, lb, ub, rng):
+    sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
+    print(f"sample={sample})\n")
+    return sample
 
 def latin_hypercube(val, lb, ub, sampler):
     sample = sampler.random(n=1)
@@ -51,16 +54,16 @@ def midpoint_guess_and_bound(val, lb, ub):
     return (far_bound + val) / 2
 
 
-def rand_guess_and_bound(val, lb, ub):
+def rand_guess_and_bound(val, lb, ub, rng):
     """Random choice between current value and farthest bound."""
     far_bound = ub if ((ub - val) >= (val - lb)) else lb  # farther bound
-    return random.uniform(val, far_bound)
+    return rng.uniform(val, far_bound)
 
 
-def rand_distributed(val, lb, ub, divisions=9):
+def rand_distributed(val, lb, ub, rng, divisions=9):
     """Random choice among evenly distributed set of values between bounds."""
     set_distributed_vals = linspace(lb, ub, divisions)
-    return random.choice(set_distributed_vals)
+    return rng.choice(set_distributed_vals)
 
 
 def simple_midpoint(val, lb, ub):
@@ -88,13 +91,9 @@ def reinitialize_variables(model, config):
     Excludes fixed, noncontinuous, and unbounded variables.
 
     """
-    if config.strategy is "latin_hypercube":
-        vlist = list(identify_variables(model, include_fixed=False))
-        _
-        for v in vlist:
-
+    # if config.strategy == "latin_hypercube":
+    #     vlist = list(identify_variables(model, include_fixed=False))
         
-    else:
     for var in model.component_data_objects(ctype=Var, descend_into=True):
         if var.is_fixed() or not var.is_continuous():
             continue
@@ -108,7 +107,9 @@ def reinitialize_variables(model, config):
                 )
             continue
         val = var.value if var.value is not None else (var.lb + var.ub) / 2
+        print(f"val = {val}\n")
         # apply reinitialization strategy to variable
         var.set_value(
-            strategies[config.strategy](val, var.lb, var.ub), skip_validation=True
+            strategies[config.strategy](val, var.lb, var.ub, config.rng), skip_validation=True
+
         )

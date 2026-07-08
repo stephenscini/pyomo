@@ -9,7 +9,7 @@
 
 from pyomo.core.base.block import BlockData
 from pyomo.contrib.solver.common.base import SolverBase
-# from pyomo.contrib.multistart.multi import Multistart
+from pyomo.common.dependencies import numpy as np
 import pyomo.environ as pyo
 from pyomo.contrib.solver.common.results import SolutionStatus
 from pyomo.devel.initialization.bounds.bound_variables import (
@@ -27,11 +27,12 @@ def _initialize_with_multistart_solver(
     default_bound=1e6,
     seed = None,
     ):
-
+    
     # Make a shallow clone
     nlp = shallow_clone(nlp)
     # bounds on the nonlinear variables
     bound_all_nonlinear_variables(nlp, default_bound=default_bound)
+
     res = multistart_solver.solve(nlp)
     logger.info(
         'solved multistart run'

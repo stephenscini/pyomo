@@ -379,6 +379,7 @@ def initialize_with_multistart_opt(
 
     if multistart_solver is None:
         multistart_solver = pyo.SolverFactory("multistart")
+        multistart_solver.CONFIG.seed=seed
 
     if not skip_initial_nlp_solve:
         res = _try_nlp_solve(nlp, nlp_solver)
