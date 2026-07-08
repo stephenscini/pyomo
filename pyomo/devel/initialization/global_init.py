@@ -48,15 +48,5 @@ def _initialize_with_global_solver(
     logger.info(
         f'solved NLP with {global_solver.name}: {res.solution_status}, {res.termination_condition}'
     )
-    res = nlp_solver.solve(
-        nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
-    )
-    logger.info(
-        f'solved NLP with {nlp_solver.name}: {res.solution_status}, {res.termination_condition}'
-    )
-    if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-        res.solution_loader.load_vars()
-    else:
-        logger.warning('initialization was not successful via global optimization')
 
     return res
