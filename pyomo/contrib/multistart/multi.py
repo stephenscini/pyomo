@@ -209,18 +209,14 @@ class MultiStart:
             )
 
             best_result = result = solver.solve(model, **config.solver_args)
-            # only use one condition to record results, this might be error causing
-            # if best_result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            #     best_result.solution_loader.load_vars()
-            #     logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
-            logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
+            if best_result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+                best_result.solution_loader.load_vars()
+                logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
             
             if (
                 result.solution_status is SolverStatus.ok
                 and result.termination_condition is tc.optimal
-            ):
-                # best_result.solution_loader.load_vars()
-
+            ):      
                 obj_val = value(obj.expr)
                 best_objective = obj_val
                 objectives.append(obj_val)
@@ -252,15 +248,13 @@ class MultiStart:
                 reinitialize_variables(m, config)
                 result = solver.solve(m, **config.solver_args) #, tee=True)
 
-                # if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-                #     result.solution_loader.load_vars()
-                #     logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}')   
+                if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+                    result.solution_loader.load_vars()
+                    logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}')   
                 if (
                     result.solution_status is SolverStatus.ok
                     and result.termination_condition is tc.optimal
                 ):
-                    result.solution_loader.load_vars()
-                    logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}') 
                     model_objectives = m.component_data_objects(Objective, active=True)
                     mobj = next(model_objectives)
                     obj_val = value(mobj.expr)
