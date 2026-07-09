@@ -82,9 +82,8 @@ def _retry_nlp_solve(nlp: BlockData, nlp_solver: SolverBase):
     nlp_res = nlp_solver.solve(
         nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
     )
-    logger.info(
-        f'solved NLP with {nlp_solver.name}: {nlp_res.solution_status}, {nlp_res.termination_condition}'
-    )
+    logger.info(f'resolved NLP with {nlp_solver.name}: {nlp_res.solution_status}, \
+              {nlp_res.termination_condition}')
     if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
         nlp_res.solution_loader.load_vars()
     else:
