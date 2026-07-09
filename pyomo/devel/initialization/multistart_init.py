@@ -35,7 +35,7 @@ def _initialize_with_multistart_solver(
 
     res = multistart_solver.solve(nlp)
     logger.info(
-        'solved multistart run'
+        'Finished multistart optimization iterations.'
         )
 
     return res
