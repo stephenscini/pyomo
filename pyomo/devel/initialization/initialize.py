@@ -380,15 +380,6 @@ def initialize_with_multistart_opt(
     finally:
         _cleanup(orig_var_data)
 
-        nlp_res = nlp_solver.solve(
-            nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
-        )
-        logger.info(
-            f'solved NLP with {nlp_solver.name}: {nlp_res.solution_status}, {nlp_res.termination_condition}'
-        )
-        if nlp_res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            nlp_res.solution_loader.load_vars()
-        else:
-            logger.warning('initialization was not successful via multistart optimization')
+    nlp_res = _retry_nlp_solve(nlp, nlp_solver)
 
     return nlp_res
