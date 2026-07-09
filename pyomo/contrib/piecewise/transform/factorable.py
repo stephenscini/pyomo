@@ -274,6 +274,8 @@ def _handle_named_expression(node, data, visitor):
     assert len(data) == 1
     node.expr = data[0]
     visitor.substitution_map[node] = node
+    visitor.node_to_var_map[node] = visitor.node_to_var_map[data[0]]
+    visitor.degree_map[node] = visitor.degree_map[data[0]]
     return node
 
 
