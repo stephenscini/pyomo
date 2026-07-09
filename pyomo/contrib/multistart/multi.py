@@ -213,13 +213,14 @@ class MultiStart:
             # if best_result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
             #     best_result.solution_loader.load_vars()
             #     logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
+            logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
             
             if (
                 result.solution_status is SolverStatus.ok
                 and result.termination_condition is tc.optimal
             ):
-                best_result.solution_loader.load_vars()
-                logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
+                # best_result.solution_loader.load_vars()
+
                 obj_val = value(obj.expr)
                 best_objective = obj_val
                 objectives.append(obj_val)
