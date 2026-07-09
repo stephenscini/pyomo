@@ -125,15 +125,23 @@ class MultiStart:
         "seed",
         ConfigValue(
             default=None,
-            description="Seed for reproducibility in random sampling methods"
+            description="Seed for reproducibility in random sampling methods."
         )
     )
     CONFIG.declare(
         "rng",
         ConfigValue(
             default=None,
-            description="Random number generator for reproducibility in random sampling methods." \
-                "Preferred over seed."
+            description="Random number generator for reproducibility in random sampling methods. \
+                Preferred over seed."
+        )
+    )
+    CONFIG.declare(
+        "new_solvers_bool",
+        ConfigValue(
+            default=False,
+            description="Boolean option for whether to use the new solver interface, default to no \
+                until solver testing complete (?)"
         )
     )
 
@@ -158,6 +166,12 @@ class MultiStart:
             config.rng = np.random.default_rng(config.seed)
 
         # initialize the solver
+        if config.new_solvers_bool == True:
+            from pyomo.contrib.solver.common.factory import SolverFactory
+            from pyomo.contrib.solver.common.results import Results
+            from pyomo.contrib.solver.common.results import SolutionStatus
+
+
         solver = SolverFactory(config.solver)
 
         # Model sense
@@ -195,10 +209,15 @@ class MultiStart:
             )
 
             best_result = result = solver.solve(model, **config.solver_args)
+            if best_result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+                best_result.solution_loader.load_vars()
+                logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
+            
             if (
-                result.solver.status is SolverStatus.ok
-                and result.solver.termination_condition is tc.optimal
+                result.solution_status is SolverStatus.ok
+                and result.termination_condition is tc.optimal
             ):
+                            
                 obj_val = value(obj.expr)
                 best_objective = obj_val
                 objectives.append(obj_val)
@@ -228,10 +247,14 @@ class MultiStart:
                 # at first iteration, solve the originally passed model
                 m = model.clone() if num_iter > 1 else model
                 reinitialize_variables(m, config)
-                result = solver.solve(m, **config.solver_args, ) # tee = True)
+                result = solver.solve(m, **config.solver_args) #, tee=True)
+
+                if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+                    result.solution_loader.load_vars()
+                    logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}')   
                 if (
-                    result.solver.status is SolverStatus.ok
-                    and result.solver.termination_condition is tc.optimal
+                    result.solution_status is SolverStatus.ok
+                    and result.termination_condition is tc.optimal
                 ):
                     model_objectives = m.component_data_objects(Objective, active=True)
                     mobj = next(model_objectives)
