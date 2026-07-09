@@ -76,6 +76,7 @@ def _try_nlp_solve(nlp: BlockData, nlp_solver: SolverBase):
         logger.info('NLP solved without any initialization')
     return res
 
+
 def _retry_nlp_solve(nlp: BlockData, nlp_solver: SolverBase):
     # retry to solve the original nlp after using an initialization method
     nlp_res = nlp_solver.solve(
@@ -315,5 +316,3 @@ def initialize_with_global_opt(
     nlp_res = _retry_nlp_solve(nlp, nlp_solver)
 
     return nlp_res
-
-
