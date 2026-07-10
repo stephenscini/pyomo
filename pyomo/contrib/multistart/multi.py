@@ -247,10 +247,11 @@ class MultiStart:
                 m = model.clone() if num_iter > 1 else model
                 reinitialize_variables(m, config)
                 result = solver.solve(m, **config.solver_args) #, tee=True)
+                logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}') 
 
                 if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
                     result.solution_loader.load_vars()
-                    logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}')   
+  
                 if (
                     result.solution_status is SolverStatus.ok
                     and result.termination_condition is tc.optimal
@@ -258,6 +259,7 @@ class MultiStart:
                     model_objectives = m.component_data_objects(Objective, active=True)
                     mobj = next(model_objectives)
                     obj_val = value(mobj.expr)
+                    logger.info(f"Objective value:{obj_val}")
                     objectives.append(obj_val)
                     if obj_val * obj_sign < obj_sign * best_objective:
                         # objective has improved

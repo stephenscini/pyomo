@@ -107,7 +107,7 @@ def reinitialize_variables(model, config):
                 )
             continue
         val = var.value if var.value is not None else (var.lb + var.ub) / 2
-        print(f"val = {val}\n")
+        logger.info(f"val = {val}\n")
         # apply reinitialization strategy to variable
         var.set_value(
             strategies[config.strategy](val, var.lb, var.ub, config.rng), skip_validation=True
