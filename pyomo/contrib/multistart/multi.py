@@ -173,17 +173,25 @@ class MultiStart:
 
     def license_is_valid(self):
         return True
+    
+    def _get_solver_api(self, use_new):
+        if use_new:
+            from pyomo.contrib.solver.common.factory import SolverFactory
+            from pyomo.contrib.solver.common.results import SolutionStatus
+            return SolverFactory, SolutionStatus, None
+        else:
+            from pyomo.opt import SolverFactory
+            from pyomo.opt import TerminationCondition as tc
+            return SolverFactory, None, tc
+
 
     def solve(self, model, **kwds):
         # initialize keyword args
         config = self.CONFIG(kwds.pop('options', {}))
         config.set_value(kwds)
 
-        # initialize the solver
-        if config.new_solvers_bool == True:
-            from pyomo.contrib.solver.common.factory import SolverFactory
-            from pyomo.contrib.solver.common.results import Results
-            from pyomo.contrib.solver.common.results import SolutionStatus
+        # initialize the solver and get accurate api
+        SolverFactory, SolutionStatus, tc = self._get_solver_api(config.new_solvers_bool)
 
         # Create centralized sampler once
         sampler = SamplingManager(
@@ -228,22 +236,32 @@ class MultiStart:
 
             best_result = result = solver.solve(model, **config.solver_args)
             # Check the solution status before loading variables into the model.
-            if best_result.solution_status in {
-                SolutionStatus.feasible,
-                SolutionStatus.optimal,
-            }:
-                best_result.solution_loader.load_vars()
-                logger.info(
-                    f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}'
-                )
-                # If we are looking for the first feasible solution, then return immediately
-                if config.break_on_solution:
-                    return best_result
+            if config.new_solvers_bool:
+                if result.solution_status in {
+                    SolutionStatus.feasible,
+                    SolutionStatus.optimal,
+                }:
+                    result.solution_loader.load_vars()
+                    logger.info(
+                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                    )
+                    
+                if best_result.solution_status is SolutionStatus.optimal:
+                    obj_val = value(obj.expr)
+                    best_objective = obj_val
+                    objectives.append(obj_val)
 
-            if result.termination_condition is tc.optimal:
-                obj_val = value(obj.expr)
-                best_objective = obj_val
-                objectives.append(obj_val)
+            else:
+                if result.termination_condition in {
+                    tc.feasible,
+                    tc.optimal,
+                }:
+                    result.solution_loader.load_vars()
+
+                if result.termination_condition is tc.optimal:
+                    obj_val = value(obj.expr)
+                    best_objective = obj_val
+                    objectives.append(obj_val)
 
             num_iter = 0
             max_iter = config.iterations
@@ -273,29 +291,66 @@ class MultiStart:
                 reinitialize_variables(m, config, sampler)
                 result = solver.solve(m, **config.solver_args)  # , tee=True)
 
-                if result.solution_status in {
-                    SolutionStatus.feasible,
-                    SolutionStatus.optimal,
-                }:
-                    result.solution_loader.load_vars()
-                    logger.info(
-                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                    )
-                    if config.break_on_solution:
-                        best_model = m
-                        best_result = result
-                        break
-
-                if result.termination_condition is tc.optimal:
-                    model_objectives = m.component_data_objects(Objective, active=True)
-                    mobj = next(model_objectives)
-                    obj_val = value(mobj.expr)
-                    objectives.append(obj_val)
-                    if obj_val * obj_sign < obj_sign * best_objective:
-                        # objective has improved
+                # Check the solution status before loading variables into the model.
+                if config.new_solvers_bool:
+                    if result.solution_status in {
+                        SolutionStatus.feasible,
+                        SolutionStatus.optimal,
+                    }:
+                        result.solution_loader.load_vars()
+                        logger.info(
+                            f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                        )
+                        # If we are looking for the first feasible solution, then return immediately
+                        if config.break_on_solution:
+                            return best_result
+                        
+                    if best_result.solution_status is SolutionStatus.optimal:
+                        obj_val = value(obj.expr)
                         best_objective = obj_val
-                        best_model = m
-                        best_result = result
+                        objectives.append(obj_val)
+
+                else:
+                    if result.termination_condition in {
+                        tc.feasible,
+                        tc.optimal,
+                    }:
+                        result.solution_loader.load_vars()
+
+                    if result.termination_condition is tc.optimal:
+                        model_objectives = m.component_data_objects(Objective, active=True)
+                        mobj = next(model_objectives)
+                        obj_val = value(mobj.expr)
+                        objectives.append(obj_val)
+                        if obj_val * obj_sign < obj_sign * best_objective:
+                            # objective has improved
+                            best_objective = obj_val
+                            best_model = m
+                            best_result = result
+
+                # if result.solution_status in {
+                #     SolutionStatus.feasible,
+                #     SolutionStatus.optimal,
+                # }:
+                #     result.solution_loader.load_vars()
+                #     logger.info(
+                #         f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                #     )
+                #     if config.break_on_solution:
+                #         best_model = m
+                #         best_result = result
+                #         break
+
+                # if result.termination_condition is tc.optimal:
+                #     model_objectives = m.component_data_objects(Objective, active=True)
+                #     mobj = next(model_objectives)
+                #     obj_val = value(mobj.expr)
+                #     objectives.append(obj_val)
+                #     if obj_val * obj_sign < obj_sign * best_objective:
+                #         # objective has improved
+                #         best_objective = obj_val
+                #         best_model = m
+                #         best_result = result
                 if num_iter == 1:
                     # if it's the first iteration, set the best_model and
                     # best_result regardless of solution status in case the
