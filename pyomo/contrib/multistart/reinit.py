@@ -13,9 +13,7 @@ import logging
 import random
 from pyomo.common.dependencies import numpy as np
 from pyomo.common.dependencies.scipy import stats
-from pyomo.core.expr.visitor import (
-    identify_variables,
-)
+from pyomo.core.expr.visitor import identify_variables
 
 from pyomo.core import Var
 
@@ -23,8 +21,9 @@ logger = logging.getLogger('pyomo.contrib.multistart')
 
 
 def rand(val, lb, ub, rng):
-    sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
+    sample = rng.uniform(lb, ub)  # uniform distribution between lb and ub
     return sample
+
 
 def midpoint_guess_and_bound(val, lb, ub, rng=None):
     """Midpoint between current value and farthest bound."""
@@ -59,7 +58,6 @@ strategies = {
     "rand_guess_and_bound": rand_guess_and_bound,
     "rand_distributed": rand_distributed,
     "midpoint": simple_midpoint,
-
 }
 
 
@@ -72,7 +70,7 @@ def reinitialize_variables(model, config, sampler):
 
     eligible_vars = []
 
-    for var in model.component_data_objects(ctype=Var, descend_into=True):     
+    for var in model.component_data_objects(ctype=Var, descend_into=True):
         if var.is_fixed() or not var.is_continuous():
             continue
         if var.lb is None or var.ub is None:
@@ -90,28 +88,29 @@ def reinitialize_variables(model, config, sampler):
     # Sample for new methods as a vector
     if sampler.method in {"uniform", "lhs", "sobol"}:
         if len(eligible_vars) == 0:
-                raise ValueError("No eligible variables to reinitialize." \
-                "Please add bounds.")
-        
+            raise ValueError(
+                "No eligible variables to reinitialize." "Please add bounds."
+            )
+
         # Collect lower and upper bounds for sampler
         lowers = [v.lb for v in eligible_vars]
         uppers = [v.ub for v in eligible_vars]
-        
+
         # Generate vector of samples using sampler
         samples = sampler.sample_vector(lowers, uppers)
 
         # assign samples to variables
         for var, sample in zip(eligible_vars, samples):
-                var.set_value(sample, skip_validation=True)
+            var.set_value(sample, skip_validation=True)
 
         return
-    
+
     # Otherwise use strategies to maintain original functionality
     for var in eligible_vars:
         val = var.value if var.value is not None else (var.lb + var.ub) / 2
         print(f"val = {val}\n")
         # apply reinitialization strategy to variable
         var.set_value(
-            strategies[config.strategy](val, var.lb, var.ub, sampler.rng), skip_validation=True
-
+            strategies[config.strategy](val, var.lb, var.ub, sampler.rng),
+            skip_validation=True,
         )

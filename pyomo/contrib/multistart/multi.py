@@ -127,39 +127,39 @@ class MultiStart:
         "break_on_solution",
         ConfigValue(
             default=False,
-            description="Condition to break if a feasible or optimal solution is found. Defaults to False."
-        )
+            description="Condition to break if a feasible or optimal solution is found. Defaults to False.",
+        ),
     )
     CONFIG.declare(
         "sampling_method",
         ConfigValue(
             default="random_uniform",
             description="Method for sampling random starting points for reinitialization step. Supported options are \
-            'random_uniform', 'latin_hypercube', and 'sobol_sampling'"
-        )
+            'random_uniform', 'latin_hypercube', and 'sobol_sampling'",
+        ),
     )
     CONFIG.declare(
         "seed",
         ConfigValue(
             default=None,
-            description="Seed for reproducibility in random sampling methods."
-        )
+            description="Seed for reproducibility in random sampling methods.",
+        ),
     )
     CONFIG.declare(
         "rng",
         ConfigValue(
             default=None,
             description="Random number generator for reproducibility in random sampling methods. \
-                Preferred over seed."
-        )
+                Preferred over seed.",
+        ),
     )
     CONFIG.declare(
         "new_solvers_bool",
         ConfigValue(
             default=False,
             description="Boolean option for whether to use the new solver interface, default to no \
-                until solver testing complete (?)"
-        )
+                until solver testing complete (?)",
+        ),
     )
 
     def available(self, exception_flag=True):
@@ -186,8 +186,9 @@ class MultiStart:
             from pyomo.contrib.solver.common.results import SolutionStatus
 
         # Create centralized sampler once
-        sampler = SamplingManager(method=config.sampling_method, 
-                                  rng=config.rng, seed=config.seed)
+        sampler = SamplingManager(
+            method=config.sampling_method, rng=config.rng, seed=config.seed
+        )
 
         solver = SolverFactory(config.solver)
 
@@ -227,14 +228,19 @@ class MultiStart:
 
             best_result = result = solver.solve(model, **config.solver_args)
             # Check the solution status before loading variables into the model.
-            if best_result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            if best_result.solution_status in {
+                SolutionStatus.feasible,
+                SolutionStatus.optimal,
+            }:
                 best_result.solution_loader.load_vars()
-                logger.info(f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}')
+                logger.info(
+                    f'solved NLP: {best_result.solution_status}, {best_result.termination_condition}'
+                )
                 # If we are looking for the first feasible solution, then return immediately
                 if config.break_on_solution:
                     return best_result
-            
-            if result.termination_condition is tc.optimal:      
+
+            if result.termination_condition is tc.optimal:
                 obj_val = value(obj.expr)
                 best_objective = obj_val
                 objectives.append(obj_val)
@@ -265,16 +271,20 @@ class MultiStart:
                 # at first iteration, solve the originally passed model
                 m = model.clone() if num_iter > 1 else model
                 reinitialize_variables(m, config, sampler)
-                result = solver.solve(m, **config.solver_args) #, tee=True)
+                result = solver.solve(m, **config.solver_args)  # , tee=True)
 
-                if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+                if result.solution_status in {
+                    SolutionStatus.feasible,
+                    SolutionStatus.optimal,
+                }:
                     result.solution_loader.load_vars()
-                    logger.info(f'solved NLP: {result.solution_status}, {result.termination_condition}')
+                    logger.info(
+                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                    )
                     if config.break_on_solution:
                         best_model = m
                         best_result = result
                         break
-
 
                 if result.termination_condition is tc.optimal:
                     model_objectives = m.component_data_objects(Objective, active=True)
@@ -323,7 +333,9 @@ class MultiStart:
     def __exit__(self, t, v, traceback):
         pass
 
+
 # Sampling class to organize and configure random samplers
+
 
 class SamplingManager:
     def __init__(self, method="uniform", rng=None, seed=None):
@@ -336,11 +348,11 @@ class SamplingManager:
             "sobol": "sobol",
         }
         self.method = aliases[method.lower()]
-        
+
         self.seed = seed
 
         # Define or create a random number generator
-        # All 
+        # All
 
         if rng is not None:
             self.rng = rng
@@ -370,7 +382,7 @@ class SamplingManager:
 
         if self.method in ("lhs", "sobol"):
             self._ensure_qmc(dim=len(lower))
-            x = self.qmc_sampler.random(n=1)   # shape (1, d)
+            x = self.qmc_sampler.random(n=1)  # shape (1, d)
             return stats.qmc.scale(x, lower, upper)[0]
 
         raise ValueError(f"Unknown sampling method '{self.method}'")

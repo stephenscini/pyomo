@@ -62,6 +62,5 @@ def should_stop(solutions, stopping_mass, stopping_delta, tolerance):
     confidence = f / n + (2 * sqrt(2) + sqrt(3)) * sqrt(log(3 / d) / n)
     # Add temporary logger
     logging.info(f"Number of solutions [n]:{n}; Optima viewed once [f]:{f}; \
-    Confidence:{confidence}"
-    )
+    Confidence:{confidence}")
     return confidence < c
