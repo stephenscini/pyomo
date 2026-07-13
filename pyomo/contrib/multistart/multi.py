@@ -173,17 +173,18 @@ class MultiStart:
 
     def license_is_valid(self):
         return True
-    
+
     def _get_solver_api(self, use_new):
         if use_new:
             from pyomo.contrib.solver.common.factory import SolverFactory
             from pyomo.contrib.solver.common.results import SolutionStatus
+
             return SolverFactory, SolutionStatus, None
         else:
             from pyomo.opt import SolverFactory
             from pyomo.opt import TerminationCondition as tc
-            return SolverFactory, None, tc
 
+            return SolverFactory, None, tc
 
     def solve(self, model, **kwds):
         # initialize keyword args
@@ -191,7 +192,9 @@ class MultiStart:
         config.set_value(kwds)
 
         # initialize the solver and get accurate api
-        SolverFactory, SolutionStatus, tc = self._get_solver_api(config.new_solvers_bool)
+        SolverFactory, SolutionStatus, tc = self._get_solver_api(
+            config.new_solvers_bool
+        )
 
         # Create centralized sampler once
         sampler = SamplingManager(
@@ -245,17 +248,14 @@ class MultiStart:
                     logger.info(
                         f'solved NLP: {result.solution_status}, {result.termination_condition}'
                     )
-                    
+
                 if best_result.solution_status is SolutionStatus.optimal:
                     obj_val = value(obj.expr)
                     best_objective = obj_val
                     objectives.append(obj_val)
 
             else:
-                if result.termination_condition in {
-                    tc.feasible,
-                    tc.optimal,
-                }:
+                if result.termination_condition in {tc.feasible, tc.optimal}:
                     result.solution_loader.load_vars()
 
                 if result.termination_condition is tc.optimal:
@@ -304,21 +304,20 @@ class MultiStart:
                         # If we are looking for the first feasible solution, then return immediately
                         if config.break_on_solution:
                             return best_result
-                        
+
                     if best_result.solution_status is SolutionStatus.optimal:
                         obj_val = value(obj.expr)
                         best_objective = obj_val
                         objectives.append(obj_val)
 
                 else:
-                    if result.termination_condition in {
-                        tc.feasible,
-                        tc.optimal,
-                    }:
+                    if result.termination_condition in {tc.feasible, tc.optimal}:
                         result.solution_loader.load_vars()
 
                     if result.termination_condition is tc.optimal:
-                        model_objectives = m.component_data_objects(Objective, active=True)
+                        model_objectives = m.component_data_objects(
+                            Objective, active=True
+                        )
                         mobj = next(model_objectives)
                         obj_val = value(mobj.expr)
                         objectives.append(obj_val)
