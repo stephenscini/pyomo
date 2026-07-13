@@ -22,37 +22,11 @@ from pyomo.core import Var
 logger = logging.getLogger('pyomo.contrib.multistart')
 
 
-def rand(val, lb, ub, rng, sampling="random_uniform"):
-    # sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
-    # print(f"sample={sample})\n")
-
-    # Changing to other style
-    # Basic layout
-    # sample = _generate_sample()
+def rand(val, lb, ub, rng):
+    sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
     return sample
 
-def latin_hypercube(val, lb, ub, sampler):
-    sample = sampler.random(n=1)
-    sample = stats.qmc.scale(sample, lb, ub)
-    return sample
-
-def _generate_sample(vlist, config):
-    n_vars = len(vlist)
-    bnds_list = []
-    for v in vlist:
-        # the bounds should not be None because we
-        # set the bounds to default_bound in
-        # bound_all_nonlinear_variables
-        lb = v.lb
-        ub = v.ub
-        bnds_list.append((lb, ub))
-    sampler = stats.qmc.LatinHypercube(d=n_vars, seed=config.seed)
-    sample = sampler.random(n=config.seed)
-    l_bounds = [i[0] for i in bnds_list]
-    u_bounds = [i[1] for i in bnds_list]
-    sample = stats.qmc.scale(sample, l_bounds, u_bounds)
-
-def midpoint_guess_and_bound(val, lb, ub):
+def midpoint_guess_and_bound(val, lb, ub, rng=None):
     """Midpoint between current value and farthest bound."""
     far_bound = ub if ((ub - val) >= (val - lb)) else lb  # farther bound
     return (far_bound + val) / 2
@@ -70,7 +44,7 @@ def rand_distributed(val, lb, ub, rng, divisions=9):
     return rng.choice(set_distributed_vals)
 
 
-def simple_midpoint(val, lb, ub):
+def simple_midpoint(val, lb, ub, rng=None):
     return (lb + ub) * 0.5
 
 
@@ -85,20 +59,20 @@ strategies = {
     "rand_guess_and_bound": rand_guess_and_bound,
     "rand_distributed": rand_distributed,
     "midpoint": simple_midpoint,
-    "latin_hypercube": latin_hypercube
+
 }
 
 
-def reinitialize_variables(model, config):
+def reinitialize_variables(model, config, sampler):
     """Reinitializes all variable values in the model.
 
     Excludes fixed, noncontinuous, and unbounded variables.
 
     """
-    # if config.strategy == "latin_hypercube":
-    #     vlist = list(identify_variables(model, include_fixed=False))
-        
-    for var in model.component_data_objects(ctype=Var, descend_into=True):
+
+    eligible_vars = []
+
+    for var in model.component_data_objects(ctype=Var, descend_into=True):     
         if var.is_fixed() or not var.is_continuous():
             continue
         if var.lb is None or var.ub is None:
@@ -110,10 +84,34 @@ def reinitialize_variables(model, config):
                     'suppress_unbounded_warning flag.' % (var.name, var.lb, var.ub)
                 )
             continue
+
+        eligible_vars.append(var)
+
+    # Sample for new methods as a vector
+    if sampler.method in {"uniform", "lhs", "sobol"}:
+        if len(eligible_vars) == 0:
+                raise ValueError("No eligible variables to reinitialize." \
+                "Please add bounds.")
+        
+        # Collect lower and upper bounds for sampler
+        lowers = [v.lb for v in eligible_vars]
+        uppers = [v.ub for v in eligible_vars]
+        
+        # Generate vector of samples using sampler
+        samples = sampler.sample_vector(lowers, uppers)
+
+        # assign samples to variables
+        for var, sample in zip(eligible_vars, samples):
+                var.set_value(sample, skip_validation=True)
+
+        return
+    
+    # Otherwise use strategies to maintain original functionality
+    for var in eligible_vars:
         val = var.value if var.value is not None else (var.lb + var.ub) / 2
         print(f"val = {val}\n")
         # apply reinitialization strategy to variable
         var.set_value(
-            strategies[config.strategy](val, var.lb, var.ub, config.rng), skip_validation=True
+            strategies[config.strategy](val, var.lb, var.ub, sampler.rng), skip_validation=True
 
         )
