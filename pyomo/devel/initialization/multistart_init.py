@@ -22,20 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 def _initialize_with_multistart_solver(
-    nlp: BlockData, 
-    multistart_solver,
-    default_bound=1.0e8,
-    seed = None,
-    ):
-    
+    nlp: BlockData, multistart_solver, default_bound=1.0e8, seed=None
+):
+
     # Make a shallow clone
     nlp = shallow_clone(nlp)
     # bounds on the nonlinear variables
     bound_all_nonlinear_variables(nlp, default_bound=default_bound)
 
     res = multistart_solver.solve(nlp)
-    logger.info(
-        'Finished multistart optimization iterations.'
-        )
+    logger.info('Finished multistart optimization iterations.')
 
     return res

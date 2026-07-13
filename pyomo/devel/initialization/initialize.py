@@ -324,11 +324,10 @@ def initialize_with_global_opt(
 def initialize_with_multistart_opt(
     nlp: BlockData,
     nlp_solver: SolverBase | None = None,
-    multistart_solver = None,
+    multistart_solver=None,
     skip_initial_nlp_solve: bool = False,
     default_bound: float = 1e8,
     seed=0,
-
 ) -> Results:
     """
     Attempt to initialize and subsequently solve the model given by ``nlp``.
@@ -362,8 +361,8 @@ def initialize_with_multistart_opt(
 
     if multistart_solver is None:
         multistart_solver = pyo.SolverFactory("multistart")
-        multistart_solver.CONFIG.seed=seed
-        multistart_solver.CONFIG.new_solvers_bool=True
+        multistart_solver.CONFIG.seed = seed
+        multistart_solver.CONFIG.new_solvers_bool = True
 
     if not skip_initial_nlp_solve:
         res = _try_nlp_solve(nlp, nlp_solver)
@@ -374,8 +373,10 @@ def initialize_with_multistart_opt(
 
     try:
         res = _initialize_with_multistart_solver(
-            nlp=nlp, multistart_solver=multistart_solver,
-            default_bound=default_bound, seed=seed
+            nlp=nlp,
+            multistart_solver=multistart_solver,
+            default_bound=default_bound,
+            seed=seed,
         )
     finally:
         _cleanup(orig_var_data)
