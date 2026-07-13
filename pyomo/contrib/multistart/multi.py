@@ -122,6 +122,21 @@ class MultiStart:
         ),
     )
     CONFIG.declare(
+        "break_when_optimal",
+        ConfigValue(
+            default=False,
+            description="Condition to break if a feasible or optimal solution is found. Defaults to False."
+        )
+    )
+    CONFIG.declare(
+        "sampling_method",
+        ConfigValue(
+            default="random_uniform",
+            description="Method for sampling random starting points for reinitialization step. Supported options are \
+            'random_uniform', 'latin_hypercube', and 'sobol_sampling'"
+        )
+    )
+    CONFIG.declare(
         "seed",
         ConfigValue(
             default=None,
@@ -241,7 +256,7 @@ class MultiStart:
                 ):
                     HCS_completed = True
                     break
-                print(f"num_iter: {num_iter}\n")
+                logger.info(f"num_iter: {num_iter}\n")
                 num_iter += 1
                 # at first iteration, solve the originally passed model
                 m = model.clone() if num_iter > 1 else model

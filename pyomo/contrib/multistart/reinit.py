@@ -22,9 +22,13 @@ from pyomo.core import Var
 logger = logging.getLogger('pyomo.contrib.multistart')
 
 
-def rand(val, lb, ub, rng):
-    sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
-    print(f"sample={sample})\n")
+def rand(val, lb, ub, rng, sampling="random_uniform"):
+    # sample = rng.uniform(lb, ub) # uniform distribution between lb and ub
+    # print(f"sample={sample})\n")
+
+    # Changing to other style
+    # Basic layout
+    # sample = _generate_sample()
     return sample
 
 def latin_hypercube(val, lb, ub, sampler):
@@ -32,7 +36,7 @@ def latin_hypercube(val, lb, ub, sampler):
     sample = stats.qmc.scale(sample, lb, ub)
     return sample
 
-def _generate_lhs_sample(vlist, config):
+def _generate_sample(vlist, config):
     n_vars = len(vlist)
     bnds_list = []
     for v in vlist:

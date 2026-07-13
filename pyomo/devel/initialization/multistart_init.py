@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _initialize_with_multistart_solver(
     nlp: BlockData, 
     multistart_solver,
-    default_bound=1e6,
+    default_bound=1.0e8,
     seed = None,
     ):
     
