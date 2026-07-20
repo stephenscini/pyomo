@@ -63,7 +63,11 @@ class MultiStart:
     )
     CONFIG.declare(
         "solver",
-        ConfigValue(default="ipopt", description="solver to use, defaults to ipopt"),
+        ConfigValue(
+            default="ipopt",
+            description="solver to use, defaults to ipopt"
+            "Should also be able to accept solver objects. In progress",
+        ),
     )
     CONFIG.declare(
         "solver_args",
@@ -155,6 +159,14 @@ class MultiStart:
         ),
     )
 
+    CONFIG.declare(
+        "initialize",
+        ConfigValue(
+            default=False,
+            description="Boolean for whether solver is being used to initialize model. Default is False.",
+        ),
+    )
+
     def available(self, exception_flag=True):
         """Check if solver is available.
 
@@ -176,6 +188,10 @@ class MultiStart:
         sampler = SamplingManager(
             method=config.sampling_method, rng=config.rng, seed=config.seed
         )
+
+        if config.initialize == True:
+            config.solver_args["load_solutions"] = False
+            config.solver_args["raise_exception_on_nonoptimal_result"] = False
 
         solver = NewSolverFactory(config.solver)
 
@@ -215,14 +231,15 @@ class MultiStart:
 
             best_result = result = solver.solve(model, **config.solver_args)
             # Check the solution status before loading variables into the model.
-            if result.solution_status in {
-                SolutionStatus.feasible,
-                SolutionStatus.optimal,
-            }:
-                result.solution_loader.load_vars()
-                logger.info(
-                    f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                )
+            if config.initialize:
+                if result.solution_status in {
+                    SolutionStatus.feasible,
+                    SolutionStatus.optimal,
+                }:
+                    result.solution_loader.load_vars()
+                    logger.info(
+                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                    )
 
             if best_result.solution_status is SolutionStatus.optimal:
                 obj_val = value(obj.expr)
@@ -258,17 +275,18 @@ class MultiStart:
                 result = solver.solve(m, **config.solver_args)  # , tee=True)
 
                 # Check the solution status before loading variables into the model.
-                if result.solution_status in {
-                    SolutionStatus.feasible,
-                    SolutionStatus.optimal,
-                }:
-                    result.solution_loader.load_vars()
-                    logger.info(
-                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                    )
-                    # If we are looking for the first feasible solution, then return immediately
-                    if config.break_on_solution:
-                        return best_result
+                if config.initialize:
+                    if result.solution_status in {
+                        SolutionStatus.feasible,
+                        SolutionStatus.optimal,
+                    }:
+                        result.solution_loader.load_vars()
+                        logger.info(
+                            f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                        )
+                        # If we are looking for the first feasible solution, then return immediately
+                        if config.break_on_solution:
+                            return best_result
 
                 if best_result.solution_status is SolutionStatus.optimal:
                     model_objectives = m.component_data_objects(Objective, active=True)
