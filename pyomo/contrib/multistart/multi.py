@@ -322,8 +322,6 @@ class MultiStart:
 
 
 # Sampling class to organize and configure random samplers
-
-
 class SamplingManager:
     def __init__(self, method="uniform", rng=None, seed=None):
         aliases = {

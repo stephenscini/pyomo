@@ -53,6 +53,16 @@ def global_init_ex():
     return results.solution_status, m.x.value
 
 
+def multistart_init_ex():
+    m = build_model()
+    nlp_solver = SolverFactory('ipopt')
+    global_solver = SolverFactory('scip_direct')
+    results = ini.initialize_with_global_opt(
+        nlp=m, nlp_solver=nlp_solver, global_solver=global_solver
+    )
+
+    return results.solution_status, m.x.value
+
 if __name__ == '__main__':
     # stat, x = lp_init_ex()
     # stat, x = pwl_init_ex()
