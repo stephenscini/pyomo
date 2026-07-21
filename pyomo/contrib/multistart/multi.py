@@ -21,8 +21,7 @@ from pyomo.common.dependencies import numpy as np
 from pyomo.contrib.multistart.high_conf_stop import should_stop
 from pyomo.contrib.multistart.reinit import reinitialize_variables, strategies
 from pyomo.core import Objective, Var, minimize, value
-from pyomo.opt import SolverFactory, SolverStatus
-from pyomo.contrib.solver.common.factory import SolverFactory as NewSolverFactory
+from pyomo.contrib.solver.common.factory import SolverFactory
 from pyomo.contrib.solver.common.results import SolutionStatus
 from pyomo.common.dependencies.scipy import stats
 from pyomo.common.dependencies import numpy as np
@@ -193,7 +192,7 @@ class MultiStart:
             config.solver_args["load_solutions"] = False
             config.solver_args["raise_exception_on_nonoptimal_result"] = False
 
-        solver = NewSolverFactory(config.solver)
+        solver = SolverFactory(config.solver)
 
         # Model sense
         objectives = model.component_data_objects(Objective, active=True)

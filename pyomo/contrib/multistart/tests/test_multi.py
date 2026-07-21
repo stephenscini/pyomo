@@ -21,12 +21,12 @@ from pyomo.environ import (
     Constraint,
     NonNegativeReals,
     Objective,
-    SolverFactory,
     Var,
     maximize,
     sin,
     value,
 )
+from pyomo.contrib.solver.common.factory import SolverFactory
 
 
 @unittest.skipIf(not SolverFactory('ipopt').available(), "IPOPT not available")
