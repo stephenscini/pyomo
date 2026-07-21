@@ -53,6 +53,7 @@ class MultiStart:
             doc="""Specify the restart strategy.
 
         - "rand": random choice between variable bounds
+        - "rand_vector": random choice, vectorized approach with sampler
         - "midpoint_guess_and_bound": midpoint between current value and farthest bound
         - "rand_guess_and_bound": random choice between current value and farthest bound
         - "rand_distributed": random choice among evenly distributed values
@@ -138,8 +139,9 @@ class MultiStart:
         "sampling_method",
         ConfigValue(
             default="random_uniform",
-            description="Method for sampling random starting points for reinitialization step. Supported options are \
-            'random_uniform', 'latin_hypercube', and 'sobol_sampling'",
+            description="Method for sampling random starting points for reinitialization step. "
+            "Supported options are 'random_uniform', 'latin_hypercube', and 'sobol_sampling'. "
+            "Only utilized when config.strategy is 'rand_vector'.",
         ),
     )
     CONFIG.declare(
@@ -155,14 +157,6 @@ class MultiStart:
             default=None,
             description="Random number generator for reproducibility in random sampling methods. \
                 Preferred over seed.",
-        ),
-    )
-
-    CONFIG.declare(
-        "initialize",
-        ConfigValue(
-            default=False,
-            description="Boolean for whether solver is being used to initialize model. Default is False.",
         ),
     )
 
@@ -188,9 +182,9 @@ class MultiStart:
             method=config.sampling_method, rng=config.rng, seed=config.seed
         )
 
-        if config.initialize == True:
-            config.solver_args["load_solutions"] = False
-            config.solver_args["raise_exception_on_nonoptimal_result"] = False
+        # Set options so infeasible solve does not interrupt runs
+        config.solver_args["load_solutions"] = False
+        config.solver_args["raise_exception_on_nonoptimal_result"] = False
 
         solver = SolverFactory(config.solver)
 
@@ -230,15 +224,14 @@ class MultiStart:
 
             best_result = result = solver.solve(model, **config.solver_args)
             # Check the solution status before loading variables into the model.
-            if config.initialize:
-                if result.solution_status in {
-                    SolutionStatus.feasible,
-                    SolutionStatus.optimal,
-                }:
-                    result.solution_loader.load_vars()
-                    logger.info(
-                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                    )
+            if result.solution_status in {
+                SolutionStatus.feasible,
+                SolutionStatus.optimal,
+            }:
+                result.solution_loader.load_vars()
+                logger.info(
+                    f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                )
 
             if best_result.solution_status is SolutionStatus.optimal:
                 obj_val = value(obj.expr)
@@ -274,18 +267,17 @@ class MultiStart:
                 result = solver.solve(m, **config.solver_args)  # , tee=True)
 
                 # Check the solution status before loading variables into the model.
-                if config.initialize:
-                    if result.solution_status in {
-                        SolutionStatus.feasible,
-                        SolutionStatus.optimal,
-                    }:
-                        result.solution_loader.load_vars()
-                        logger.info(
-                            f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                        )
-                        # If we are looking for the first feasible solution, then return immediately
-                        if config.break_on_solution:
-                            return best_result
+                if result.solution_status in {
+                    SolutionStatus.feasible,
+                    SolutionStatus.optimal,
+                }:
+                    result.solution_loader.load_vars()
+                    logger.info(
+                        f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                    )
+                    # If we are looking for the first feasible solution, then return immediately
+                    if config.break_on_solution:
+                        return best_result
 
                 if best_result.solution_status is SolutionStatus.optimal:
                     model_objectives = m.component_data_objects(Objective, active=True)
@@ -297,13 +289,6 @@ class MultiStart:
                         best_objective = obj_val
                         best_model = m
                         best_result = result
-
-                if num_iter == 1:
-                    # if it's the first iteration, set the best_model and
-                    # best_result regardless of solution status in case the
-                    # model is infeasible.
-                    best_model = m
-                    best_result = result
 
             if using_HCS and not HCS_completed:
                 logger.warning(
@@ -354,8 +339,6 @@ class SamplingManager:
         self.seed = seed
 
         # Define or create a random number generator
-        # All
-
         if rng is not None:
             self.rng = rng
         else:

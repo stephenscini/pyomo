@@ -25,6 +25,14 @@ def rand(val, lb, ub, rng):
     return sample
 
 
+def rand_vector(lbs, ubs, sampler):
+    lowers = lbs
+    uppers = ubs
+    # Generate vector of samples using sampler
+    samples = sampler.sample_vector(lowers, uppers)
+    return samples
+
+
 def midpoint_guess_and_bound(val, lb, ub, rng=None):
     """Midpoint between current value and farthest bound."""
     far_bound = ub if ((ub - val) >= (val - lb)) else lb  # farther bound
@@ -34,7 +42,10 @@ def midpoint_guess_and_bound(val, lb, ub, rng=None):
 def rand_guess_and_bound(val, lb, ub, rng):
     """Random choice between current value and farthest bound."""
     far_bound = ub if ((ub - val) >= (val - lb)) else lb  # farther bound
-    return rng.uniform(val, far_bound)
+    if far_bound == ub:
+        return rng.uniform(val, far_bound)
+    else:
+        return rng.uniform(far_bound, val)
 
 
 def rand_distributed(val, lb, ub, rng, divisions=9):
@@ -54,6 +65,7 @@ def linspace(lower, upper, n):
 
 strategies = {
     "rand": rand,
+    "rand_vector": rand_vector,
     "midpoint_guess_and_bound": midpoint_guess_and_bound,
     "rand_guess_and_bound": rand_guess_and_bound,
     "rand_distributed": rand_distributed,
@@ -85,19 +97,17 @@ def reinitialize_variables(model, config, sampler):
 
         eligible_vars.append(var)
 
-    # Sample for new methods as a vector
-    if sampler.method in {"uniform", "lhs", "sobol"}:
+    if config.strategy == "rand_vector":
+
         if len(eligible_vars) == 0:
             raise ValueError(
                 "No eligible variables to reinitialize." "Please add bounds."
             )
-
         # Collect lower and upper bounds for sampler
         lowers = [v.lb for v in eligible_vars]
         uppers = [v.ub for v in eligible_vars]
 
-        # Generate vector of samples using sampler
-        samples = sampler.sample_vector(lowers, uppers)
+        samples = rand_vector(lowers, uppers, sampler)
 
         # assign samples to variables
         for var, sample in zip(eligible_vars, samples):
@@ -105,12 +115,13 @@ def reinitialize_variables(model, config, sampler):
 
         return
 
-    # Otherwise use strategies to maintain original functionality
-    for var in eligible_vars:
-        val = var.value if var.value is not None else (var.lb + var.ub) / 2
-        print(f"val = {val}\n")
-        # apply reinitialization strategy to variable
-        var.set_value(
-            strategies[config.strategy](val, var.lb, var.ub, sampler.rng),
-            skip_validation=True,
-        )
+    # Otherwise
+    else:
+        for var in eligible_vars:
+            val = var.value if var.value is not None else (var.lb + var.ub) / 2
+            # print(f"val = {val}\n")
+            # apply reinitialization strategy to variable
+            var.set_value(
+                strategies[config.strategy](val, var.lb, var.ub, sampler.rng),
+                skip_validation=True,
+            )
