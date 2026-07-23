@@ -120,7 +120,7 @@ class MultistartConfig(SolverConfig):
         self.suppress_unbounded_warning = self.declare(
             "suppress_unbounded_warning",
             ConfigValue(
-                default=False,
+                default=True,
                 domain=bool,
                 description="True to suppress warning for skipping unbounded variables.",
             ),
@@ -217,8 +217,8 @@ class MultiStart(SolverBase):
         )
 
         # Set options so infeasible solve does not interrupt runs
-        config.solver_args["load_solutions"] = False
-        config.solver_args["raise_exception_on_nonoptimal_result"] = False
+        # config.solver_args["load_solutions"] = False
+        # config.solver_args["raise_exception_on_nonoptimal_result"] = False
 
         solver = SolverFactory(config.solver)
 
