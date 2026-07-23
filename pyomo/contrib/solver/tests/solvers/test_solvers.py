@@ -48,6 +48,8 @@ from pyomo.contrib.solver.tests.solvers import instances
 from pyomo.core.expr.compare import assertExpressionsEqual
 from pyomo.core.expr.numeric_expr import LinearExpression
 
+from pyomo.contrib.multistart.multi import MultiStart
+
 np, numpy_available = attempt_import('numpy')
 parameterized, param_available = attempt_import('parameterized')
 parameterized = parameterized.parameterized
@@ -80,6 +82,8 @@ all_solvers = [
     ('scip_persistent', ScipPersistent),
     ('gams', GAMS),
     ('knitro_direct', KnitroDirectSolver),
+    ('multistart', MultiStart)
+
 ]
 mip_solvers = [
     ('gurobi_persistent', GurobiPersistent),
