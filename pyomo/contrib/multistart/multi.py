@@ -12,26 +12,169 @@ import logging
 
 from pyomo.common.config import (
     ConfigBlock,
+    ConfigDict,
     ConfigValue,
     In,
     document_kwargs_from_configdict,
+    document_class_CONFIG,
+    document_configdict,
+    ADVANCED_OPTION,
 )
+
 from pyomo.common.modeling import unique_component_name
 from pyomo.common.dependencies import numpy as np
 from pyomo.contrib.multistart.high_conf_stop import should_stop
 from pyomo.contrib.multistart.reinit import reinitialize_variables, strategies
 from pyomo.core import Objective, Var, minimize, value
+from pyomo.contrib.solver.common.base import SolverBase
+from pyomo.contrib.solver.common.config import SolverConfig
 from pyomo.contrib.solver.common.factory import SolverFactory
 from pyomo.contrib.solver.common.results import SolutionStatus
+
 from pyomo.common.dependencies.scipy import stats
 from pyomo.common.dependencies import numpy as np
 
 logger = logging.getLogger('pyomo.contrib.multistart')
 
 
+@document_configdict()
+class MultistartConfig(SolverConfig):
+    def __init__(
+        self,
+        description=None,
+        doc=None,
+        implicit=False,
+        implicit_domain=None,
+        visibility=0,
+    ):
+        super().__init__(
+            description=description,
+            doc=doc,
+            implicit=implicit,
+            implicit_domain=implicit_domain,
+            visibility=visibility,
+        )
+
+        self.strategy = self.declare(
+            "strategy",
+            ConfigValue(
+                default="rand",
+                domain=In(strategies.keys()),
+                description="Specify the restart strategy. Defaults to rand.",
+                doc="""Specify the restart strategy.
+
+            - "rand": random choice between variable bounds
+            - "rand_vector": random choice, vectorized approach with sampler
+            - "midpoint_guess_and_bound": midpoint between current value and farthest bound
+            - "rand_guess_and_bound": random choice between current value and farthest bound
+            - "rand_distributed": random choice among evenly distributed values
+            - "midpoint": exact midpoint between the bounds. If using this option, multiple iterations are useless.
+            """,
+            ),
+        )
+        self.solver = self.declare(
+            "solver",
+            ConfigValue(
+                default="ipopt",
+                description="solver to use, defaults to ipopt"
+                "Should also be able to accept solver objects. In progress",
+            ),
+        )
+        self.solver_args = self.declare(
+            "solver_args",
+            ConfigValue(
+                default={},
+                description="Dictionary of keyword arguments to pass to the solver.",
+            ),
+        )
+        self.iterations = self.declare(
+            "iterations",
+            ConfigValue(
+                default=10,
+                description="Specify the number of iterations, defaults to 10. "
+                "If -1 is specified, the high confidence stopping rule will be used",
+            ),
+        )
+        self.stopping_mass = self.declare(
+            "stopping_mass",
+            ConfigValue(
+                default=0.5,
+                description="Maximum allowable estimated missing mass of optima.",
+                doc="""Maximum allowable estimated missing mass of optima for the
+            high confidence stopping rule, only used with the random strategy.
+            The lower the parameter, the stricter the rule.
+            Value bounded in (0, 1].""",
+            ),
+        )
+        self.stopping_delta = self.declare(
+            "stopping_delta",
+            ConfigValue(
+                default=0.5,
+                description="1 minus the confidence level required for the stopping rule.",
+                doc="""1 minus the confidence level required for the stopping rule for the
+            high confidence stopping rule, only used with the random strategy.
+            The lower the parameter, the stricter the rule.
+            Value bounded in (0, 1].""",
+            ),
+        )
+        # self.surpress_unbounded_warning = self.declare(
+        #     "suppress_unbounded_warning",
+        #     ConfigValue(
+        #         default=False,
+        #         domain=bool,
+        #         description="True to suppress warning for skipping unbounded variables.",
+        #     ),
+        # )
+        self.HCS_max_iterations = self.declare(
+            "HCS_max_iterations",
+            ConfigValue(
+                default=1000,
+                description="Maximum number of iterations before interrupting the high confidence stopping rule.",
+            ),
+        )
+        self.HCS_tolerance = self.declare(
+            "HCS_tolerance",
+            ConfigValue(
+                default=0,
+                description="Tolerance on HCS objective value equality. Defaults to Python float equality precision.",
+            ),
+        )
+        self.break_on_solution = self.declare(
+            "break_on_solution",
+            ConfigValue(
+                default=False,
+                description="Condition to break if a feasible or optimal solution is found. Defaults to False.",
+            ),
+        )
+        self.sampling_method = self.declare(
+            "sampling_method",
+            ConfigValue(
+                default="random_uniform",
+                description="Method for sampling random starting points for reinitialization step. "
+                "Supported options are 'random_uniform', 'latin_hypercube', and 'sobol_sampling'. "
+                "Only utilized when config.strategy is 'rand_vector'.",
+            ),
+        )
+        self.seed = self.declare(
+            "seed",
+            ConfigValue(
+                default=None,
+                description="Seed for reproducibility in random sampling methods.",
+            ),
+        )
+        self.rng = self.declare(
+            "rng",
+            ConfigValue(
+                default=None,
+                description="Random number generator for reproducibility in random sampling methods. \
+                    Preferred over seed.",
+            ),
+        )
+
+
 @SolverFactory.register('multistart', doc='MultiStart solver for NLPs')
-@document_kwargs_from_configdict('CONFIG')
-class MultiStart:
+@document_class_CONFIG(methods=['solve'])
+class MultiStart(SolverBase):
     """Solver wrapper that initializes at multiple starting points.
 
     # TODO: also return appropriate duals
@@ -43,122 +186,7 @@ class MultiStart:
 
     """
 
-    CONFIG = ConfigBlock("MultiStart")
-    CONFIG.declare(
-        "strategy",
-        ConfigValue(
-            default="rand",
-            domain=In(strategies.keys()),
-            description="Specify the restart strategy. Defaults to rand.",
-            doc="""Specify the restart strategy.
-
-        - "rand": random choice between variable bounds
-        - "rand_vector": random choice, vectorized approach with sampler
-        - "midpoint_guess_and_bound": midpoint between current value and farthest bound
-        - "rand_guess_and_bound": random choice between current value and farthest bound
-        - "rand_distributed": random choice among evenly distributed values
-        - "midpoint": exact midpoint between the bounds. If using this option, multiple iterations are useless.
-        """,
-        ),
-    )
-    CONFIG.declare(
-        "solver",
-        ConfigValue(
-            default="ipopt",
-            description="solver to use, defaults to ipopt"
-            "Should also be able to accept solver objects. In progress",
-        ),
-    )
-    CONFIG.declare(
-        "solver_args",
-        ConfigValue(
-            default={},
-            description="Dictionary of keyword arguments to pass to the solver.",
-        ),
-    )
-    CONFIG.declare(
-        "iterations",
-        ConfigValue(
-            default=10,
-            description="Specify the number of iterations, defaults to 10. "
-            "If -1 is specified, the high confidence stopping rule will be used",
-        ),
-    )
-    CONFIG.declare(
-        "stopping_mass",
-        ConfigValue(
-            default=0.5,
-            description="Maximum allowable estimated missing mass of optima.",
-            doc="""Maximum allowable estimated missing mass of optima for the
-        high confidence stopping rule, only used with the random strategy.
-        The lower the parameter, the stricter the rule.
-        Value bounded in (0, 1].""",
-        ),
-    )
-    CONFIG.declare(
-        "stopping_delta",
-        ConfigValue(
-            default=0.5,
-            description="1 minus the confidence level required for the stopping rule.",
-            doc="""1 minus the confidence level required for the stopping rule for the
-        high confidence stopping rule, only used with the random strategy.
-        The lower the parameter, the stricter the rule.
-        Value bounded in (0, 1].""",
-        ),
-    )
-    CONFIG.declare(
-        "suppress_unbounded_warning",
-        ConfigValue(
-            default=False,
-            domain=bool,
-            description="True to suppress warning for skipping unbounded variables.",
-        ),
-    )
-    CONFIG.declare(
-        "HCS_max_iterations",
-        ConfigValue(
-            default=1000,
-            description="Maximum number of iterations before interrupting the high confidence stopping rule.",
-        ),
-    )
-    CONFIG.declare(
-        "HCS_tolerance",
-        ConfigValue(
-            default=0,
-            description="Tolerance on HCS objective value equality. Defaults to Python float equality precision.",
-        ),
-    )
-    CONFIG.declare(
-        "break_on_solution",
-        ConfigValue(
-            default=False,
-            description="Condition to break if a feasible or optimal solution is found. Defaults to False.",
-        ),
-    )
-    CONFIG.declare(
-        "sampling_method",
-        ConfigValue(
-            default="random_uniform",
-            description="Method for sampling random starting points for reinitialization step. "
-            "Supported options are 'random_uniform', 'latin_hypercube', and 'sobol_sampling'. "
-            "Only utilized when config.strategy is 'rand_vector'.",
-        ),
-    )
-    CONFIG.declare(
-        "seed",
-        ConfigValue(
-            default=None,
-            description="Seed for reproducibility in random sampling methods.",
-        ),
-    )
-    CONFIG.declare(
-        "rng",
-        ConfigValue(
-            default=None,
-            description="Random number generator for reproducibility in random sampling methods. \
-                Preferred over seed.",
-        ),
-    )
+    CONFIG = MultistartConfig()
 
     def available(self, exception_flag=True):
         """Check if solver is available.
@@ -168,6 +196,12 @@ class MultiStart:
 
         """
         return True
+
+    def version(self):
+        """Get solver version
+        TODO: This is a solver wrapper, unsure how to define version in this case."""
+
+        return
 
     def license_is_valid(self):
         return True
