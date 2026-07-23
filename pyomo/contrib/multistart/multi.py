@@ -117,14 +117,14 @@ class MultistartConfig(SolverConfig):
             Value bounded in (0, 1].""",
             ),
         )
-        # self.surpress_unbounded_warning = self.declare(
-        #     "suppress_unbounded_warning",
-        #     ConfigValue(
-        #         default=False,
-        #         domain=bool,
-        #         description="True to suppress warning for skipping unbounded variables.",
-        #     ),
-        # )
+        self.suppress_unbounded_warning = self.declare(
+            "suppress_unbounded_warning",
+            ConfigValue(
+                default=False,
+                domain=bool,
+                description="True to suppress warning for skipping unbounded variables.",
+            ),
+        )
         self.HCS_max_iterations = self.declare(
             "HCS_max_iterations",
             ConfigValue(
