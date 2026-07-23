@@ -82,8 +82,7 @@ all_solvers = [
     ('scip_persistent', ScipPersistent),
     ('gams', GAMS),
     ('knitro_direct', KnitroDirectSolver),
-    ('multistart', MultiStart)
-
+    ('multistart', MultiStart),
 ]
 mip_solvers = [
     ('gurobi_persistent', GurobiPersistent),
