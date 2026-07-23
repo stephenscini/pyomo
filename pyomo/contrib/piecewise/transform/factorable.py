@@ -105,6 +105,11 @@ def _handle_product(node, data, visitor):
     arg1_degree = visitor.degree_map[arg1]
     arg2_degree = visitor.degree_map[arg2]
 
+    print(arg1, arg2)
+    print(arg1_degree, arg2_degree)
+    print(arg1_nvars, arg2_nvars)
+
+
     if arg1_degree == 0:
         res = arg1 * arg2
         visitor.node_to_var_map[res] = arg2_vars
@@ -125,7 +130,9 @@ def _handle_product(node, data, visitor):
         arg1_nvars = 1
         arg1_degree = 1
     if arg2_nvars > 1 or visitor.aggressive_substitution:
+        print('creating aux var for arg2: ', arg2)
         arg2 = visitor.create_aux_var(arg2)
+        print('new arg2: ', arg2)
         arg2_vars = (arg2,)
         arg2_nvars = 1
         arg2_degree = 1
@@ -272,11 +279,12 @@ def _handle_pow(node, data, visitor):
 
 def _handle_named_expression(node, data, visitor):
     assert len(data) == 1
-    node.expr = data[0]
-    visitor.substitution_map[node] = node
-    visitor.node_to_var_map[node] = visitor.node_to_var_map[data[0]]
-    visitor.degree_map[node] = visitor.degree_map[data[0]]
-    return node
+    res = data[0]
+    # node.expr = data[0]
+    visitor.substitution_map[node] = res
+    # visitor.node_to_var_map[res] = visitor.node_to_var_map[data[0]]
+    # visitor.degree_map[res] = visitor.degree_map[data[0]]
+    return res
 
 
 def _handle_negation(node, data, visitor):
