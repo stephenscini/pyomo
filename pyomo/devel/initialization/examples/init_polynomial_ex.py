@@ -63,6 +63,7 @@ def multistart_init_ex():
 
     return results.solution_status, m.x.value
 
+
 if __name__ == '__main__':
     # stat, x = lp_init_ex()
     # stat, x = pwl_init_ex()

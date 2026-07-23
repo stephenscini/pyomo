@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def _initialize_with_multistart_solver(
-    nlp: BlockData, multistart_solver, seed, default_bound=1.0e8, 
+    nlp: BlockData, multistart_solver, seed, default_bound=1.0e8
 ):
 
     # Make a shallow clone
