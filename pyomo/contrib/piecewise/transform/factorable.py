@@ -27,6 +27,7 @@ from pyomo.core.expr.numeric_expr import (
     NPV_UnaryFunctionExpression,
 )
 from pyomo.core.base.units_container import _PyomoUnit
+import pyomo.environ as pyo
 
 from pyomo.repn.util import ExitNodeDispatcher
 from pyomo.core.base import (
@@ -105,9 +106,9 @@ def _handle_product(node, data, visitor):
     arg1_degree = visitor.degree_map[arg1]
     arg2_degree = visitor.degree_map[arg2]
 
-    print(arg1, arg2)
-    print(arg1_degree, arg2_degree)
-    print(arg1_nvars, arg2_nvars)
+    # print(arg1, arg2)
+    # print(arg1_degree, arg2_degree)
+    # print(arg1_nvars, arg2_nvars)
 
 
     if arg1_degree == 0:
@@ -130,9 +131,9 @@ def _handle_product(node, data, visitor):
         arg1_nvars = 1
         arg1_degree = 1
     if arg2_nvars > 1 or visitor.aggressive_substitution:
-        print('creating aux var for arg2: ', arg2)
+        # print('creating aux var for arg2: ', arg2)
         arg2 = visitor.create_aux_var(arg2)
-        print('new arg2: ', arg2)
+        # print('new arg2: ', arg2)
         arg2_vars = (arg2,)
         arg2_nvars = 1
         arg2_degree = 1
@@ -396,8 +397,14 @@ class _UnivariateNonlinearDecompositionVisitor(StreamBasedExpressionVisitor):
             return expr
         else:
             x = self.block.x.add()
+            # initialize from the current expression value, if possible
+            # try:
+            #     x.set_value(pyo.value(expr, exception=True))
+            # except:
+            #     x.set_value(None)
             self.substitution_map[expr] = x
             c = self.block.c.add(x == expr)
+            # c.pprint()
             # we need to compute bounds on x now because some of the
             # handlers depend on variable bounds (e.g., division)
             xl, xu = self._interval_visitor.walk_expression(expr)
@@ -493,6 +500,7 @@ class UnivariateNonlinearDecompositionTransformation(Transformation):
         )
 
         for con in constraints:
+            # con.pprint()
             lower, body, upper = con.to_bounded_expression(evaluate_bounds=True)
             new_body = visitor.walk_expression(body)
             if lower is not None and lower == upper:

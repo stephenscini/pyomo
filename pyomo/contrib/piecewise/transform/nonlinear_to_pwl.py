@@ -352,7 +352,13 @@ class _Evaluator:
 
     def __call__(self, *args):
         for i, v in enumerate(self.expr_vars):
-            v.value = args[i]
+            # try:
+                v.value = args[i]
+            # except:
+            #     print(self.expr)
+            #     import pdb 
+            #     pdb.set_trace() 
+                
         return value(self.expr)
 
 
@@ -598,9 +604,14 @@ class NonlinearToPWL(Transformation):
         src_data_dict = cons.parent_block().private_data()
         constraints = cons.values() if cons.is_indexed() else (cons,)
         for c in constraints:
-            pw_approx, expr_type = self._approximate_expression(
-                c.body, c, trans_block, config, config.approximate_quadratic_constraints
-            )
+            try:
+                pw_approx, expr_type = self._approximate_expression(
+                    c.body, c, trans_block, config, config.approximate_quadratic_constraints
+                )
+            except:
+                c.pprint()
+                import pdb
+                pdb.set_trace()
 
             if pw_approx is None:
                 # Didn't need approximated, nothing to do
