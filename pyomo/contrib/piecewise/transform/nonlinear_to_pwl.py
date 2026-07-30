@@ -186,10 +186,13 @@ def _get_pwl_function_approximation(func, config, bounds):
     bounds: list of tuples giving upper and lower bounds and a boolean indicating
        if the variable's domain is discrete or not, for each of func's arguments
     """
+    print(func.expr)
+    print(bounds)
+  
     method = config.domain_partitioning_method
     n = config.num_points
     points = _partition_method_dispatcher[method](bounds, n, func, config)
-
+    
     # Don't confuse PiecewiseLinearFunction constructor...
     dim = len(points[0])
     if dim == 1:
@@ -604,14 +607,14 @@ class NonlinearToPWL(Transformation):
         src_data_dict = cons.parent_block().private_data()
         constraints = cons.values() if cons.is_indexed() else (cons,)
         for c in constraints:
-            try:
-                pw_approx, expr_type = self._approximate_expression(
-                    c.body, c, trans_block, config, config.approximate_quadratic_constraints
-                )
-            except:
-                c.pprint()
-                import pdb
-                pdb.set_trace()
+            # try:
+            pw_approx, expr_type = self._approximate_expression(
+                c.body, c, trans_block, config, config.approximate_quadratic_constraints
+            )
+            # except:
+                # c.pprint()
+                # import pdb
+                # pdb.set_trace()
 
             if pw_approx is None:
                 # Didn't need approximated, nothing to do
