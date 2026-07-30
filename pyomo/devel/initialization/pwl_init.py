@@ -283,10 +283,14 @@ def _initialize_with_piecewise_linear_approximation(
     bound_all_nonlinear_variables(pwl, default_bound=default_bound)
     logger.info('bounded nonlinear variables')
 
+    # pwl.pprint()
+
     # Now, we need to fix variables with equal (or nearly equal) bounds.
     # Otherwise, the PWL transformation complains
     fix_vars_with_equal_bounds(pwl)
     logger.info('fixed variables with equal bounds')
+
+
 
     # now we modify the model by introducing slacks to make sure the PWL
     # approximation is feasible
@@ -294,6 +298,8 @@ def _initialize_with_piecewise_linear_approximation(
     # upper bounds for them
     _minimize_infeasibility(pwl)
     logger.info('reformulated model to minimize infeasibility')
+
+    pwl.pprint()
 
     # build the PWL approximation
     trans = pyo.TransformationFactory('contrib.piecewise.nonlinear_to_pwl')

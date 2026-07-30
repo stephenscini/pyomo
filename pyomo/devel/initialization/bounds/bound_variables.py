@@ -32,5 +32,11 @@ def bound_all_nonlinear_variables(m: BlockData, default_bound: float = 1.0e8):
             logger.debug(
                 f'Could not obtain an upper bound for {str(v)} better than {default_bound}; setting the upper bound to {default_bound}'
             )
-            v.setub(default_bound)
+            v.setub(default_bound)    
     fbbt(m)
+    for v in get_vars(m):
+        d = v.ub - v.lb
+        d*= 1e-6
+        d = min(d, 1e-6)
+        v.setlb(v.lb+d)
+        v.setub(v.ub-d)
