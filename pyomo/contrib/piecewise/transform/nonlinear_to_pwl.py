@@ -599,14 +599,9 @@ class NonlinearToPWL(Transformation):
         src_data_dict = cons.parent_block().private_data()
         constraints = cons.values() if cons.is_indexed() else (cons,)
         for c in constraints:
-            # try:
             pw_approx, expr_type = self._approximate_expression(
                 c.body, c, trans_block, config, config.approximate_quadratic_constraints
             )
-            # except:
-            # c.pprint()
-            # import pdb
-            # pdb.set_trace()
 
             if pw_approx is None:
                 # Didn't need approximated, nothing to do
