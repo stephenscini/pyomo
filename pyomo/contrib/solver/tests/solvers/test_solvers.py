@@ -48,6 +48,8 @@ from pyomo.contrib.solver.tests.solvers import instances
 from pyomo.core.expr.compare import assertExpressionsEqual
 from pyomo.core.expr.numeric_expr import LinearExpression
 
+from pyomo.contrib.multistart.multi import MultiStart
+
 np, numpy_available = attempt_import('numpy')
 parameterized, param_available = attempt_import('parameterized')
 parameterized = parameterized.parameterized
@@ -80,6 +82,7 @@ all_solvers = [
     ('scip_persistent', ScipPersistent),
     ('gams', GAMS),
     ('knitro_direct', KnitroDirectSolver),
+    ('multistart', MultiStart),
 ]
 mip_solvers = [
     ('gurobi_persistent', GurobiPersistent),
@@ -1150,7 +1153,7 @@ class TestSolvers(unittest.TestCase):
         opt.config.load_solutions = False
         res = opt.solve(m)
         self.assertNotEqual(res.solution_status, SolutionStatus.optimal)
-        if isinstance(opt, Ipopt):
+        if isinstance(opt, Ipopt) or isinstance(opt, MultiStart):
             acceptable_termination_conditions = {
                 TerminationCondition.locallyInfeasible,
                 TerminationCondition.unbounded,
@@ -1165,7 +1168,7 @@ class TestSolvers(unittest.TestCase):
         self.assertAlmostEqual(m.y.value, None)
         self.assertTrue(res.incumbent_objective is None)
 
-        if not isinstance(opt, Ipopt):
+        if not isinstance(opt, Ipopt) and not isinstance(opt, MultiStart):
             # ipopt can return the values of the variables/duals at the last iterate
             # even if it did not converge; raise_exception_on_nonoptimal_result
             # is set to False, so we are free to load infeasible solutions
@@ -1229,7 +1232,7 @@ class TestSolvers(unittest.TestCase):
         opt.config.load_solutions = False
         res = opt.solve(m)
         self.assertNotEqual(res.solution_status, SolutionStatus.optimal)
-        if isinstance(opt, Ipopt):
+        if isinstance(opt, Ipopt) or isinstance(opt, MultiStart):
             acceptable_termination_conditions = {
                 TerminationCondition.locallyInfeasible,
                 TerminationCondition.unbounded,
@@ -1909,7 +1912,7 @@ class TestSolvers(unittest.TestCase):
                 constant=0,
             )
             m.c2[t] = expr == 1
-        if isinstance(opt, Ipopt):
+        if isinstance(opt, Ipopt) or isinstance(opt, MultiStart):
             opt.config.time_limit = 1e-6
         else:
             opt.config.time_limit = 0

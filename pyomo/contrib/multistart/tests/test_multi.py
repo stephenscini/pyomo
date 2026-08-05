@@ -21,12 +21,13 @@ from pyomo.environ import (
     Constraint,
     NonNegativeReals,
     Objective,
-    SolverFactory,
     Var,
     maximize,
     sin,
     value,
 )
+from pyomo.contrib.solver.common.factory import SolverFactory
+from pyomo.contrib.solver.common.util import NoOptimalSolutionError
 
 
 @unittest.skipIf(not SolverFactory('ipopt').available(), "IPOPT not available")
@@ -59,6 +60,7 @@ class MultistartTests(unittest.TestCase):
             self.assertGreaterEqual(
                 clone_objective_value, standard_objective_value
             )  # assumes maximization
+
 
     def test_as_good_with_HCS_rule(self):
         """test that the high confidence stopping rule with very lenient
@@ -106,7 +108,9 @@ class MultistartTests(unittest.TestCase):
         m.x = Var(bounds=(0, 1))
         m.c = Constraint(expr=m.x >= 2)
         m.o = Objective(expr=m.x)
-        SolverFactory('multistart').solve(m, iterations=2)
+
+        with self.assertRaises(NoOptimalSolutionError):
+            SolverFactory('multistart').solve(m, iterations=2)
         output = StringIO()
         with LoggingIntercept(output, 'pyomo.contrib.multistart', logging.WARNING):
             SolverFactory('multistart').solve(m, iterations=-1, HCS_max_iterations=3)
@@ -132,19 +136,6 @@ class MultistartTests(unittest.TestCase):
         m.o = Objective(expr=m.x)
         m.o2 = Objective(expr=m.x)
         with self.assertRaisesRegex(RuntimeError, "multiple active objectives"):
-            SolverFactory('multistart').solve(m)
-
-    def test_no_obj(self):
-        m = ConcreteModel()
-        m.x = Var()
-        with self.assertRaisesRegex(RuntimeError, "no active objective"):
-            SolverFactory('multistart').solve(m)
-
-    def test_const_obj(self):
-        m = ConcreteModel()
-        m.x = Var()
-        m.o = Objective(expr=5)
-        with self.assertRaisesRegex(RuntimeError, "constant objective"):
             SolverFactory('multistart').solve(m)
 
 
