@@ -290,8 +290,6 @@ def _initialize_with_piecewise_linear_approximation(
     fix_vars_with_equal_bounds(pwl)
     logger.info('fixed variables with equal bounds')
 
-
-
     # now we modify the model by introducing slacks to make sure the PWL
     # approximation is feasible
     # all of the slacks appear linearly, so we don't need to worry about

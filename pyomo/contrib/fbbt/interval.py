@@ -204,6 +204,7 @@ def inv(xl, xu, feasibility_tol):
 def div(xl, xu, yl, yu, feasibility_tol):
     return mul(xl, xu, *inv(yl, yu, feasibility_tol))
 
+
 def pow_or_inf(x, y):
     try:
         z = x**y
@@ -213,8 +214,9 @@ def pow_or_inf(x, y):
         elif x < 0:
             z = -inf
         else:
-            raise ValueError(f"Unexpected overflow error: {x}**{y}")    
+            raise ValueError(f"Unexpected overflow error: {x}**{y}")
     return z
+
 
 def power(xl, xu, yl, yu, feasibility_tol):
     """
@@ -225,16 +227,16 @@ def power(xl, xu, yl, yu, feasibility_tol):
         # worry about the sign of y.
         if yl < 0 < yu:
             lb = min(pow_or_inf(xu, yl), pow_or_inf(xl, yu))
-            ub = max(pow_or_inf(xl,yl), pow_or_inf(xu,yu))
+            ub = max(pow_or_inf(xl, yl), pow_or_inf(xu, yu))
         elif yl >= 0:
-            lb = min(pow_or_inf(xl, yl), pow_or_inf(xl,yu))
+            lb = min(pow_or_inf(xl, yl), pow_or_inf(xl, yu))
             ub = max(pow_or_inf(xu, yl), pow_or_inf(xu, yu))
         else:  # yu <= 0:
             lb = min(pow_or_inf(xu, yl), pow_or_inf(xu, yu))
             ub = max(pow_or_inf(xl, yl), pow_or_inf(xl, yu))
     elif xl == 0:
         if yl >= 0:
-            lb = min(pow_or_inf(xl, yl), pow_or_inf(xl,yu))
+            lb = min(pow_or_inf(xl, yl), pow_or_inf(xl, yu))
             ub = max(pow_or_inf(xu, yl), pow_or_inf(xu, yu))
         elif yu <= 0:
             lb, ub = inv(
