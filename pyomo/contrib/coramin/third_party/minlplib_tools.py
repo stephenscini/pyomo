@@ -516,6 +516,17 @@ def _handle_log10_osil(node, var_map):
     arg1 = _parse_nonlinear_expression_osil(node[0], var_map)
     return pe.log10(arg1)
 
+def _handle_signpower_osil(node, var_map):
+    assert len(node) == 2
+    arg1 = _parse_nonlinear_expression_osil(node[0], var_map)
+    arg2 = _parse_nonlinear_expression_osil(node[1], var_map)
+    return arg1*abs(arg1)**(arg2 - 1)
+
+def _handle_abs_osil(node, var_map):
+    assert len(node) == 1
+    arg1 = _parse_nonlinear_expression_osil(node[0], var_map)
+    return abs(arg1)
+    
 
 _osil_operator_map = dict()
 _osil_operator_map['{os.optimizationservices.org}negate'] = _handle_negate_osil
@@ -533,7 +544,8 @@ _osil_operator_map['{os.optimizationservices.org}cos'] = _handle_cos_osil
 _osil_operator_map['{os.optimizationservices.org}sqrt'] = _handle_sqrt_osil
 _osil_operator_map['{os.optimizationservices.org}tanh'] = _handle_tanh_osil
 _osil_operator_map['{os.optimizationservices.org}log10'] = _handle_log10_osil
-
+_osil_operator_map['{os.optimizationservices.org}signpower'] = _handle_signpower_osil
+_osil_operator_map['{os.optimizationservices.org}abs'] = _handle_abs_osil
 
 def _parse_nonlinear_expression_osil(node, var_map):
     return _osil_operator_map[node.tag](node, var_map)
