@@ -764,9 +764,8 @@ def parse_osil_file(fname) -> ScalarBlock:
             )
         else:
             obj_expr += obj_const
-    else:
-        sense = pe.minimize
 
-    m.objective = pe.Objective(expr=obj_expr, sense=sense)
+        # Only define obj if value provided
+        m.objective = pe.Objective(expr=obj_expr, sense=sense)
 
     return m
