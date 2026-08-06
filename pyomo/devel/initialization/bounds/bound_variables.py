@@ -41,14 +41,18 @@ def bound_all_nonlinear_variables(m: BlockData, default_bound: float = 1.0e8):
                 )
                 v.setlb(-default_bound)
 
-            elif v.ub is None or v.ub > default_bound:
+            if v.ub is None or v.ub > default_bound:
                 logger.debug(
                     f'Could not obtain an upper bound for {str(v)} better than {default_bound}; setting the upper bound to {default_bound}'
                 )
                 v.setub(default_bound)
-            # If changing v.lb makes it larger than v.lb, set them equal.
-            if v.lb > v.ub:
-                v.setub(v.lb)
+        # If changing v.lb makes it larger than v.lb, set them equal.
+        if v.lb > v.ub:
+            logger.debug(
+                    f'Lower bound was set higher than upper bound, which is not allowed.' \
+                    'Setting upper bound equal to lower bound.'
+                            )
+            v.setub(v.lb)
     fbbt(m)
     # Slightly shift the bounds to prevent math domain error in log or exp functions
     for v in get_vars(m):
