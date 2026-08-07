@@ -333,11 +333,11 @@ class MultiStart(SolverBase):
             )
         best_result = result = solver.solve(model, **config.subsolver_args)
         # Check the solution status before loading variables into the model.
-        if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            results.feasible_solution_list.append(result)
-            logger.info(
+        logger.info(
                 f'solved NLP: {result.solution_status}, {result.termination_condition}'
             )
+        if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            results.feasible_solution_list.append(result)
 
         if result.solution_status is SolutionStatus.optimal:
             if obj is not None:
@@ -378,15 +378,14 @@ class MultiStart(SolverBase):
             m = model
             reinitialize_variables(m, config, sampler)
             result = solver.solve(m, **config.subsolver_args)
-            # if config.load_solutions:
+            logger.info(
+                    f'solved NLP: {result.solution_status}, {result.termination_condition}'
+                )
             # Check the solution status before loading variables into the model.
             if result.solution_status in {
                 SolutionStatus.feasible,
                 SolutionStatus.optimal,
             }:
-                logger.info(
-                    f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                )
                 results.feasible_solution_list.append(result)
                 # If we are looking for the first feasible solution, then return immediately
                 if config.break_on_solution:
