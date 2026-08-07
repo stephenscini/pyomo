@@ -41,9 +41,13 @@ def _setup(nlp):
     # get all variable bounds, domains, etc. to restore them later
     orig_vars = get_vars(nlp)
     orig_var_data = [
-        (v, (v.lower, v.upper, v.domain, v.fixed, v.value)) for v in orig_vars
+        (v, (v.lb, v.ub, v.domain, v.fixed, v.value)) for v in orig_vars
     ]
+    print(f"Len of orig_vars: {len(orig_vars)}")
     for v, vdata in orig_var_data:
+        print(v.name)
+        print(v.lower)
+        print(v.lb)
         if vdata[2].isdiscrete():
             raise RuntimeError(
                 'Initialization module currently only supports continuous models.'
@@ -54,6 +58,8 @@ def _setup(nlp):
 def _cleanup(orig_var_data):
     # restore variable bounds, domain, etc.
     for v, (lb, ub, domain, fixed, value) in orig_var_data:
+        print(v.name)
+        print(lb)
         v.setlb(lb)
         v.setub(ub)
         v.domain = domain
