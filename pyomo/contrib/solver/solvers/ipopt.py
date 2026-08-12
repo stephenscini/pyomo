@@ -365,23 +365,23 @@ class Ipopt(SolverBase):
                 open(basename + '.col', 'w', encoding='utf-8') as col_file,
             ):
                 timer.start('write_nl_file')
-                try:
+                # try:
                     # Note: this is mapping the top-level
                     # symbolic_solver_labels onto the solver's writer
                     # config, and then that config is being used (in
                     # it's entirety) to set the NLWriter's CONFIG.
-                    nl_info = NLWriter().write(
-                        model,
-                        nl_file,
-                        row_file,
-                        col_file,
-                        config=config.writer_config,
-                        symbolic_solver_labels=config.symbolic_solver_labels,
-                    )
-                    proven_infeasible = False
-                except InfeasibleConstraintException:
-                    proven_infeasible = True
-                    nl_info = NLWriterInfo()
+                nl_info = NLWriter().write(
+                    model,
+                    nl_file,
+                    row_file,
+                    col_file,
+                    config=config.writer_config,
+                    symbolic_solver_labels=config.symbolic_solver_labels,
+                )
+                proven_infeasible = False
+                # except InfeasibleConstraintException:
+                    # proven_infeasible = True
+                    # nl_info = NLWriterInfo()
                 timer.stop('write_nl_file')
 
             if proven_infeasible:

@@ -14,6 +14,7 @@ from pyomo.common.collections import ComponentSet
 from pyomo.core.base.block import BlockData
 from pyomo.core.expr.visitor import identify_variables
 from pyomo.util.vars_from_expressions import get_vars_from_components
+from pyomo.contrib.fbbt.fbbt import fbbt
 
 
 def get_vars(m: BlockData):
@@ -54,3 +55,15 @@ def fix_vars_with_equal_bounds(m, abs_tol=1e-4, rel_tol=1e-4):
             and math.isclose(v.lb, v.ub, abs_tol=abs_tol, rel_tol=rel_tol)
         ):
             v.fix(0.5 * (v.lb + v.ub))
+
+def shift_vars_to_avoid_domain_errors(m):
+    fbbt(m)
+    for v in get_vars(m):
+        if v.lb is not None and v.ub is not None and v.lb != v.ub:
+            d = v.ub - v.lb
+            d *= 1e-6
+            d = min(d, 1e-6)
+            v.setlb(v.lb + d)
+            v.setub(v.ub - d)
+    fbbt(m)
+

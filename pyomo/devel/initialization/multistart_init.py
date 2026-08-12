@@ -15,7 +15,7 @@ from pyomo.contrib.solver.common.results import SolutionStatus
 from pyomo.devel.initialization.bounds.bound_variables import (
     bound_all_nonlinear_variables,
 )
-from pyomo.devel.initialization.utils import shallow_clone, fix_vars_with_equal_bounds
+from pyomo.devel.initialization.utils import shallow_clone, fix_vars_with_equal_bounds, shift_vars_to_avoid_domain_errors
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,11 @@ def _initialize_with_multistart_solver(
     # fix variables with equal bounds for sampler
     fix_vars_with_equal_bounds(nlp)
     logger.info('fixed variables with equal bounds')
+
+    # # Seeing what happens if I shift bounds to avoid domain errors.
+    # shift_vars_to_avoid_domain_errors(nlp)
+
+    # nlp.pprint()
 
     multistart_solver.config.seed = seed
     multistart_solver.config.load_solutions = False

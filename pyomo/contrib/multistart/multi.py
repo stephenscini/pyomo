@@ -331,6 +331,8 @@ class MultiStart(SolverBase):
                     )
                 ),
             )
+        # solver.config.writer_config.linear_presolve=False
+        solver.config.solver_options["halt_on_ampl_error"] = "yes"
         best_result = result = solver.solve(model, **config.subsolver_args)
         # Check the solution status before loading variables into the model.
         logger.info(
