@@ -353,7 +353,7 @@ class MultiStart(SolverBase):
                 ),
             )
         # solver.config.writer_config.linear_presolve=False
-        solver.config.solver_options["halt_on_ampl_error"] = "yes"
+        # solver.config.solver_options["halt_on_ampl_error"] = "yes"
 
         num_iter = 0
         timer.start('initial_solve')

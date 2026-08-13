@@ -85,7 +85,7 @@ def _try_nlp_solve(nlp: BlockData, nlp_solver: SolverBase):
 def _retry_nlp_solve(nlp: BlockData, nlp_solver: SolverBase):
     # retry to solve the original nlp after using an initialization method
     nlp_res = nlp_solver.solve(
-        nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False, tee=True
+        nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False, # tee=True
     )
     logger.info(f're-solved NLP with {nlp_solver.name}: {nlp_res.solution_status}, \
               {nlp_res.termination_condition}')
