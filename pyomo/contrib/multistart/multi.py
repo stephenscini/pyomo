@@ -46,7 +46,6 @@ from pyomo.contrib.solver.common.util import (
 from pyomo.util.vars_from_expressions import get_vars_from_components
 
 from pyomo.common.dependencies.scipy import stats
-from pyomo.common.dependencies import numpy as np
 from pyomo.core.staleflag import StaleFlagManager
 
 logger = logging.getLogger('pyomo.contrib.multistart')
@@ -92,7 +91,7 @@ class MultistartConfig(SolverConfig):
             ConfigValue(
                 default="ipopt",
                 description="solver to use, defaults to ipopt"
-                "Should also be able to accept solver objects. In progress",
+                "Accepts solver names as string or solver objects.",
             ),
         )
         self.subsolver_args = self.declare(
@@ -164,10 +163,9 @@ class MultistartConfig(SolverConfig):
         self.sampling_method = self.declare(
             "sampling_method",
             ConfigValue(
-                default="latin_hypercube",
+                default="random_uniform",
                 description="Method for sampling random starting points for reinitialization step. "
-                "Supported options are 'random_uniform', 'latin_hypercube', and 'sobol_sampling'. "
-                "Only utilized when config.strategy is 'rand_vector'.",
+                "Supported options are 'random_uniform', 'latin_hypercube', and 'sobol_sampling'. ",
             ),
         )
         self.seed = self.declare(
@@ -205,6 +203,12 @@ class MultiStartResults(Results):
         )
         self.feasible_solution_list: Optional[list] = self.declare(
             'feasible_solution_list',
+            ConfigValue(
+                description="Object for loading the solution back into the model."
+            ),
+        )
+        self.feasible_iter_list: Optional[list] = self.declare(
+            'feasible_iter_list',
             ConfigValue(
                 description="Object for loading the solution back into the model."
             ),
@@ -269,24 +273,38 @@ class MultiStart(SolverBase):
 
         # Allocate the results object so we can populate it as we go
         results = MultiStartResults()
+        results.solver_name = self.name
+        results.solver_version = self.version()
         results.timing_info.start_timestamp = datetime.datetime.now(
             datetime.timezone.utc
         )
-        # As we are about to run a solver, update the stale flag
-        StaleFlagManager.mark_all_as_stale()
+
+        if config.time_limit == 0:
+            results.termination_condition = TerminationCondition.maxTimeLimit
+            results.solution_status = SolutionStatus.noSolution
+            logger.warning(
+                "Time limit set to 0 seconds. Multistart solver did not run."
+            )
+            return results
 
         # Create centralized sampler once
         sampler = SamplingManager(
             method=config.sampling_method, rng=config.rng, seed=config.seed
         )
 
-        # Set sub-solver options
+        # Define solver using either string input or provided solver object
+        if type(config.subsolver) == str:
+            solver = SolverFactory(config.subsolver)
+
+        else:
+            solver = config.subsolver
+
+        # Set specific sub-solver options
+        # if config.subsolver_args is None:
         config.subsolver_args["load_solutions"] = False
         config.subsolver_args["raise_exception_on_nonoptimal_result"] = False
+        # if config.time_limit is not None:
         config.subsolver_args["time_limit"] = config.time_limit
-        config.subsolver_args["tee"] = config.tee
-
-        solver = SolverFactory(config.subsolver)
 
         # Model sense
         objectives = list(model.component_data_objects(Objective, active=True))
@@ -311,8 +329,11 @@ class MultiStart(SolverBase):
         best_result = None
         best_objective = float('inf') * obj_sign
         results.feasible_solution_list = []
+        results.feasible_iter_list = []
 
-        timer.start('initial_solve')
+        # As we are about to run a solver, update the stale flag
+        StaleFlagManager.mark_all_as_stale()
+
         # create temporary variable list for value transfer
         tmp_var_list_name = unique_component_name(model, "_vars_list")
         setattr(
@@ -333,13 +354,19 @@ class MultiStart(SolverBase):
             )
         # solver.config.writer_config.linear_presolve=False
         solver.config.solver_options["halt_on_ampl_error"] = "yes"
+
+        num_iter = 0
+        timer.start('initial_solve')
+        logger.info(f"Running initial solve. Iteration: {num_iter}\n")
         best_result = result = solver.solve(model, **config.subsolver_args)
-        # Check the solution status before loading variables into the model.
         logger.info(
-                f'solved NLP: {result.solution_status}, {result.termination_condition}'
-            )
+            f'solved NLP: {result.solution_status}, {result.termination_condition}'
+        )
+
+        # Check the solution status before loading variables into the model.
         if result.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
             results.feasible_solution_list.append(result)
+            results.feasible_iter_list.append(num_iter)
 
         if result.solution_status is SolutionStatus.optimal:
             if obj is not None:
@@ -348,7 +375,6 @@ class MultiStart(SolverBase):
                 objectives.append(obj_val)
         timer.stop('initial_solve')
 
-        num_iter = 0
         max_iter = config.iterations
         # if HCS rule is specified, reinitialize completely randomly until
         # rule specifies stopping
@@ -362,7 +388,8 @@ class MultiStart(SolverBase):
 
         timer.start('iterative_solves')
         while num_iter < max_iter:
-            # timer.start(f"timer_iter_{num_iter}")
+            num_iter += 1
+            timer.start(f"timer_iter_{num_iter}")
             if using_HCS and should_stop(
                 objectives,
                 config.stopping_mass,
@@ -370,29 +397,29 @@ class MultiStart(SolverBase):
                 config.HCS_tolerance,
             ):
                 HCS_completed = True
-                # timer.stop(f"timer_iter_{num_iter}")
+                timer.stop(f"timer_iter_{num_iter}")
                 break
 
-            num_iter += 1
-            logger.info(f"num_iter: {num_iter}\n")
+            logger.info(f"Iteration: {num_iter}\n")
 
             # at first iteration, solve the originally passed model
             m = model
             reinitialize_variables(m, config, sampler)
             result = solver.solve(m, **config.subsolver_args)
             logger.info(
-                    f'solved NLP: {result.solution_status}, {result.termination_condition}'
-                )
+                f'solved NLP: {result.solution_status}, {result.termination_condition}'
+            )
             # Check the solution status before loading variables into the model.
             if result.solution_status in {
                 SolutionStatus.feasible,
                 SolutionStatus.optimal,
             }:
                 results.feasible_solution_list.append(result)
+                results.feasible_iter_list.append(num_iter)
                 # If we are looking for the first feasible solution, then return immediately
                 if config.break_on_solution:
                     best_result = result
-                    # timer.stop(f"timer_iter_{num_iter}")
+                    timer.stop(f"timer_iter_{num_iter}")
                     break
 
             if result.solution_status is SolutionStatus.optimal:
@@ -403,7 +430,7 @@ class MultiStart(SolverBase):
                         # objective has improved
                         best_objective = obj_val
                         best_result = result
-            # timer.stop(f"timer_iter_{num_iter}")
+            timer.stop(f"timer_iter_{num_iter}")
 
         timer.stop('iterative_solves')
         delattr(model, tmp_var_list_name)
@@ -422,8 +449,19 @@ class MultiStart(SolverBase):
         ):
             raise NoOptimalSolutionError()
 
+        # Check termination condition for ipopt-specific outputs
+        if str(
+            best_result.solver_name
+        ) == "ipopt" and best_result.termination_condition in {
+            TerminationCondition.locallyInfeasible,
+            TerminationCondition.unbounded,
+            TerminationCondition.provenInfeasible,
+        }:
+            results.termination_condition = TerminationCondition.infeasibleOrUnbounded
+        else:
+            results.termination_condition = best_result.termination_condition
+
         results.solution_loader = best_result.solution_loader
-        results.termination_condition = best_result.termination_condition
         results.solution_status = best_result.solution_status
         results.incumbent_objective = best_result.incumbent_objective
         results.solver_log = best_result.solver_log
@@ -434,12 +472,32 @@ class MultiStart(SolverBase):
 
             results.solution_loader.load_solution()
 
-        results.solver_name = self.name
-        results.solver_version = self.version()
         results.solver_config = config
         results.timing_info.timer = timer
         results.timing_info.wall_time = default_timer() - start_time
         return results
+
+    def _update_solver_timelimits(self, iteration, config, timer):
+
+        if config.subsolver_args["time_limit"] == None:
+            return
+
+        # Get elapsed time from last timer
+        if iteration == 0:
+            last_timer = timer._get_timer('initial_solve')
+        else:
+            last_timer = timer._get_timer(f"timer_iter_{iteration}")
+        elapsed_time = default_timer() - last_timer
+
+        # Take elapsed time off of time_limit for subsolver
+        solver_time_limit = config.time_limit - elapsed_time
+        subsolver_time_limit = config.subsolver_args["time_limit"] - elapsed_time
+
+        # Set new timelimits
+        config.time_limit = max(solver_time_limit, 0)
+        config.subsolver_args["time_limit"] = max(subsolver_time_limit, 1e-6)
+
+
 
     def __enter__(self):
         return self
@@ -450,16 +508,10 @@ class MultiStart(SolverBase):
 
 # Sampling class to organize and configure random samplers
 class SamplingManager:
-    def __init__(self, method="lhs", rng=None, seed=None):
-        aliases = {
-            "random_uniform": "uniform",
-            "uniform": "uniform",
-            "latin_hypercube": "lhs",
-            "lhs": "lhs",
-            "sobol_sampling": "sobol",
-            "sobol": "sobol",
-        }
-        self.method = aliases[method.lower()]
+    def __init__(self, method, rng=None, seed=None):
+
+        self.method = method
+        self._check_method()
 
         self.seed = seed
 
@@ -471,16 +523,32 @@ class SamplingManager:
 
         self.qmc_sampler = None
 
+    def _check_method(self):
+        # Define accepted method names.
+        aliases = {
+            "random_uniform": "uniform",
+            "uniform": "uniform",
+            "latin_hypercube": "lhs",
+            "lhs": "lhs",
+            "sobol_sampling": "sobol",
+            "sobol": "sobol",
+        }
+        if self.method in aliases.keys():
+            self.method = aliases[self.method.lower()]
+        else:
+            raise ValueError(
+                f"Unknown sampling method '{self.method}'."
+                "Supported methods: random_uniform, latin_hypercube, "
+                "or sobol_sampling."
+            )
+
     def _ensure_qmc(self, dim):
         if self.qmc_sampler is not None:
             return
-
         if self.method == "lhs":
             self.qmc_sampler = stats.qmc.LatinHypercube(d=dim, rng=self.rng)
         elif self.method == "sobol":
             self.qmc_sampler = stats.qmc.Sobol(d=dim, scramble=True, seed=self.rng)
-        else:
-            raise ValueError(f"QMC sampler not valid for method '{self.method}'")
 
     def sample_scalar(self, lower, upper):
         if self.method == "uniform":
@@ -490,8 +558,6 @@ class SamplingManager:
             self._ensure_qmc(dim=1)
             x = self.qmc_sampler.random(n=1)  # shape (1, d)
             return stats.qmc.scale(x, lower, upper).item()
-
-        raise ValueError(f"Unknown sampling method '{self.method}'")
 
     def sample_vector(self, lower, upper):
         """Vector sample for uniform/lhs/sobol over all vars at once."""
@@ -505,5 +571,3 @@ class SamplingManager:
             self._ensure_qmc(dim=len(lower))
             x = self.qmc_sampler.random(n=1)  # shape (1, d)
             return stats.qmc.scale(x, lower, upper)[0]
-
-        raise ValueError(f"Unknown sampling method '{self.method}'")
