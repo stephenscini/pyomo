@@ -19,6 +19,11 @@ from pyomo.contrib.piecewise.piecewise_linear_expression import (
     PiecewiseLinearExpression,
 )
 from pyomo.contrib.piecewise.piecewise_linear_function import PiecewiseLinearFunction
+from pyomo.contrib.solver.solvers.scip.scip_direct import ScipDirect
+from pyomo.contrib.solver.solvers.scip.scip_persistent import ScipPersistent
+from pyomo.contrib.solver.solvers.gurobi.gurobi_direct_minlp import GurobiDirectMINLP
+from pyomo.contrib.solver.solvers.gurobi.gurobi_persistent import GurobiPersistent
+from pyomo.contrib.solver.solvers.highs import Highs
 from pyomo.contrib.solver.common.base import SolverBase
 from pyomo.contrib.solver.common.results import SolutionStatus
 from pyomo.core.base.block import BlockData
@@ -262,6 +267,7 @@ def _initialize_with_piecewise_linear_approximation(
     mip_solver: SolverBase,
     nlp_solver: SolverBase,
     default_bound=1.0e8,
+    num_initial_points=2,
     max_iter=100,
     num_cons_to_refine_per_iter=5,
     aggressive_substitution=True,
@@ -297,7 +303,7 @@ def _initialize_with_piecewise_linear_approximation(
 
     # build the PWL approximation
     trans = pyo.TransformationFactory('contrib.piecewise.nonlinear_to_pwl')
-    trans.apply_to(pwl, num_points=2, additively_decompose=False)
+    trans.apply_to(pwl, num_points=num_initial_points, additively_decompose=False)
     logger.info('replaced nonlinear expressions with piecewise linear expressions')
 
     """
@@ -311,6 +317,7 @@ def _initialize_with_piecewise_linear_approximation(
     pwl_expr_to_con_map = _get_pwl_constraints(pwl)
     solved = False
     last_nlp_res = None
+
     for _iter in range(max_iter):
         logger.info(f'PWL initialization: iter {_iter}')
 
@@ -324,9 +331,24 @@ def _initialize_with_piecewise_linear_approximation(
         del _pwl.orig_vars
         logger.info('applied the disaggregated logarithmic transformation')
 
+        if max_iter == 1:
+            if isinstance(mip_solver, (ScipDirect, ScipPersistent)):
+                opts = {'limits/solutions': 1}
+            elif isinstance(mip_solver, (GurobiDirectMINLP, GurobiPersistent)):
+                opts = {'SolutionLimit': 1}
+            else:
+                raise NotImplementedError(
+                    'Currently, the initialization module only works with new solver '
+                    'interfaces, so the mip solvers are limited to Highs, ScipDirect, '
+                    'ScipPersistent, and GurobiDirectMINLP.'
+                )
+        else:
+            opts = {}
+
         # solve the MILP
         res = mip_solver.solve(
-            _pwl, load_solutions=False, raise_exception_on_nonoptimal_result=False
+            _pwl, load_solutions=False, raise_exception_on_nonoptimal_result=False,
+            solver_options = opts
         )
         logger.info(f'solved MILP: {res.solution_status}, {res.termination_condition}')
         if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
@@ -335,15 +357,6 @@ def _initialize_with_piecewise_linear_approximation(
         # load the variable values back into orig_vars
         for ov, nv in zip(orig_vars, new_vars):
             ov.set_value(nv.value, skip_validation=True)
-
-        # refine the PWL approximation
-        _refine_pwl_approx(
-            pwl,
-            pwl_expr_to_con_map=pwl_expr_to_con_map,
-            num_to_refine=num_cons_to_refine_per_iter,
-            bounds_tol=bounds_tol,
-        )
-        logger.info('refined PWL approximation')
 
         # try solving the NLP
         res = nlp_solver.solve(
@@ -355,6 +368,15 @@ def _initialize_with_piecewise_linear_approximation(
             solved = True
             res.solution_loader.load_vars()
             break
+
+        # refine the PWL approximation
+        _refine_pwl_approx(
+            pwl,
+            pwl_expr_to_con_map=pwl_expr_to_con_map,
+            num_to_refine=num_cons_to_refine_per_iter,
+            bounds_tol=bounds_tol,
+        )
+        logger.info('refined PWL approximation')
 
     if not solved:
         logger.warning('initialization was not successful via PWL approximation')
