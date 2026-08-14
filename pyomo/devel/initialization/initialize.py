@@ -102,6 +102,7 @@ def initialize_with_piecewise_linear_approximation(
     nlp_solver: SolverBase | None = None,
     mip_solver: SolverBase | None = None,
     default_bound: float = 1.0e8,
+    num_initial_points: int = 2,
     max_pwl_refinement_iter: int = 100,
     num_pwl_cons_to_refine_per_iter: int = 5,
     aggressive_substitution: bool = True,
@@ -168,6 +169,7 @@ def initialize_with_piecewise_linear_approximation(
             mip_solver=mip_solver,
             nlp_solver=nlp_solver,
             default_bound=default_bound,
+            num_initial_points=num_initial_points,
             max_iter=max_pwl_refinement_iter,
             num_cons_to_refine_per_iter=num_pwl_cons_to_refine_per_iter,
             aggressive_substitution=aggressive_substitution,
@@ -180,78 +182,6 @@ def initialize_with_piecewise_linear_approximation(
 
     return nlp_res
 
-def initialize_with_piecewise_linear_approximation_fine(
-    nlp: BlockData,
-    nlp_solver: SolverBase | None = None,
-    mip_solver: SolverBase | None = None,
-    default_bound: float = 1.0e8,
-    aggressive_substitution: bool = True,
-    skip_initial_nlp_solve: bool = False,
-    bounds_tol: float = 1e-6,
-) -> Results:
-    """
-    Attempt to initialize the problem with a piecewise linear approximation
-    and subsequently solve the model given by ``nlp``.
-
-    Parameters
-    ----------
-    nlp: BlockData
-        The pyomo model to be initialized.
-    nlp_solver: Optional[SolverBase]
-        A solver interface appropriate for NLPs.
-        Default: ipopt
-    mip_solver: Optional[SolverBase]
-        A solver interface appropriate for LPs and MILPs.
-        Default: gurobi_persistent
-    default_bound: float
-        All unbounded variables will be given lower and
-        upper bounds equal to default_bound.
-    aggressive_substitution: bool
-        This is passed along to the contrib.piecewise.univariate_nonlinear_decomposition
-        transformation.
-    skip_initial_nlp_solve: bool
-        If True, the initial attempt at solving the NLP without initialization
-        will be skipped.
-    bounds_tol: float
-        Bad things can happen with piecewise linear functions if the value of a
-        variable ends up outside of the variable's bounds. This bounds_tol is used
-        to ensure that variable values are sufficiently inside of the variable's
-        bounds.
-
-    Returns
-    -------
-    res: pyomo.contrib.solver.common.results.Results
-        The results object obtained the last time the nlp_solver was used to
-        try and solve the model.
-    """
-    if nlp_solver is None:
-        nlp_solver = _get_solver('ipopt', 'local NLP solver')
-
-    if not skip_initial_nlp_solve:
-        res = _try_nlp_solve(nlp, nlp_solver)
-        if res.solution_status == SolutionStatus.optimal:
-            return res
-
-    if mip_solver is None:
-        mip_solver = _get_solver('gurobi_persistent', 'MILP solver')
-
-    orig_var_data = _setup(nlp)
-
-    try:
-        res = _initialize_with_piecewise_linear_approx_fine(
-            nlp=nlp,
-            mip_solver=mip_solver,
-            nlp_solver=nlp_solver,
-            default_bound=default_bound,
-            aggressive_substitution=aggressive_substitution,
-            bounds_tol=bounds_tol,
-        )
-    finally:
-        _cleanup(orig_var_data)
-
-    nlp_res = _retry_nlp_solve(nlp, nlp_solver)
-
-    return nlp_res
 
 def initialize_with_LP_approximation(
     nlp: BlockData,
