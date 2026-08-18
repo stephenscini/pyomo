@@ -28,10 +28,9 @@ from pyomo.environ import (
     value,
 )
 from pyomo.contrib.solver.common.factory import SolverFactory
+from pyomo.contrib.solver.solvers.ipopt import Ipopt
 from pyomo.contrib.solver.common.util import NoOptimalSolutionError
-
-parameterized, param_available = attempt_import('parameterized')
-parameterized = parameterized.parameterized
+from pyomo.contrib.solver.common.results import TerminationCondition
 
 
 @unittest.skipIf(not numpy_available, "Numpy not available")
@@ -109,6 +108,22 @@ class MultistartTests(unittest.TestCase):
         m.obj = Objective(expr=m.x)
         SolverFactory('multistart').solve(m)
 
+    def test_no_obj(self):
+        m = ConcreteModel()
+        m.x = Var()
+        output = StringIO()
+        with LoggingIntercept(output, 'pyomo.contrib.multistart', logging.WARNING):
+            try:
+                SolverFactory('multistart').solve(m)
+            except:
+                pass
+            self.assertIn(
+                "No objective found in the provided model. The solver will "
+                "stop if it finds a feasible solution before completing "
+                "the total number of iterations.",
+                output.getvalue().strip(),
+            )
+
     def test_model_infeasible(self):
         m = ConcreteModel()
         m.x = Var(bounds=(0, 1))
@@ -155,6 +170,58 @@ class MultistartTests(unittest.TestCase):
         m.obj = Objective(expr=m.x)
         with self.assertRaises(ValueError):
             SolverFactory('multistart').solve(m, sampling_method="dummy")
+
+    def test_solver_object_matches_solver_string(self):
+        nlp_solver = Ipopt()
+        solver_str = "ipopt"
+        seed = 145
+
+        fresh_model = build_model()
+
+        m1 = fresh_model.clone()
+        results_obj_obj = SolverFactory('multistart').solve(
+            m1, subsolver=nlp_solver, seed=seed
+        )
+        m2 = fresh_model.clone()
+        results_obj_str = SolverFactory('multistart').solve(
+            m2, subsolver=solver_str, seed=seed
+        )
+        self.assertAlmostEqual(
+            results_obj_obj.incumbent_objective, results_obj_str.incumbent_objective
+        )
+
+    def test_sampling_methods(self):
+        sampling_methods = ["uniform", "latin_hypercube", "sobol"]
+        strategies = ["rand", "rand_vector"]
+        seed = 145
+        # For the simple model, check all sampling methods converge
+        simple_model = build_model()
+        for method, strategy in product(sampling_methods, strategies):
+            m = simple_model.clone()
+            res = SolverFactory("multistart").solve(
+                m, strategy=strategy, sampling_method=method
+            )
+            self.assertEqual(
+                res.termination_condition,
+                TerminationCondition.convergenceCriteriaSatisfied,
+            )
+
+    def test_max_time_limit(self):
+        simple_model = build_model()
+        output = StringIO()
+
+        with LoggingIntercept(output, 'pyomo.contrib.multistart', logging.WARNING):
+            res = SolverFactory('multistart').solve(
+                simple_model,
+                raise_exception_on_nonoptimal_result=False,
+                time_limit=1e-6,
+            )
+            self.assertIn(
+                "Time limit reached after 1 iterations.", output.getvalue().strip()
+            )
+            self.assertEqual(
+                res.termination_condition, TerminationCondition.maxTimeLimit
+            )
 
 
 def build_model():
