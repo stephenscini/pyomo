@@ -346,13 +346,15 @@ def _initialize_with_piecewise_linear_approximation(
             opts = {}
 
         # solve the MILP
-        res = mip_solver.solve(
-            _pwl, load_solutions=False, raise_exception_on_nonoptimal_result=False,
-            solver_options = opts
+        res_mip = mip_solver.solve(
+            _pwl,
+            load_solutions=False,
+            raise_exception_on_nonoptimal_result=False,
+            solver_options=opts,
         )
         logger.info(f'solved MILP: {res.solution_status}, {res.termination_condition}')
-        if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            res.solution_loader.load_vars()
+        if res_mip.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            res_mip.solution_loader.load_vars()
 
         # load the variable values back into orig_vars
         for ov, nv in zip(orig_vars, new_vars):
@@ -360,7 +362,7 @@ def _initialize_with_piecewise_linear_approximation(
 
         # try solving the NLP
         res = nlp_solver.solve(
-            nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False, tee=True,
+            nlp, load_solutions=False, raise_exception_on_nonoptimal_result=False
         )
         last_nlp_res = res
         logger.info(f'solved NLP: {res.solution_status}, {res.termination_condition}')
@@ -368,6 +370,11 @@ def _initialize_with_piecewise_linear_approximation(
             solved = True
             res.solution_loader.load_vars()
             break
+
+        else:
+            # load the variable values back into orig_vars
+            for ov, nv in zip(orig_vars, new_vars):
+                ov.set_value(nv.value, skip_validation=True)
 
         # refine the PWL approximation
         _refine_pwl_approx(
