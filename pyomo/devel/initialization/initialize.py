@@ -331,7 +331,7 @@ def initialize_with_multistart_opt(
     skip_initial_nlp_solve: bool = False,
     default_bound: float = 1e8,
     seed=0,
-    use_univariate_nonlinear_decomposition: bool = True,
+    use_univariate_nonlinear_decomposition: bool = False,
     aggressive_substitution: bool = True,
 ) -> Results:
     """
