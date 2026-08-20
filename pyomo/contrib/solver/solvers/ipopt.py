@@ -503,7 +503,7 @@ class Ipopt(SolverBase):
         # We will add 1% (with a min of 1 second and max of 100 seconds).
         timeout = config.time_limit
         if timeout is not None:
-            timeout = timeout + min(max(1.0, 0.06 * timeout), 100.0)
+            timeout = timeout + min(max(1.0, 0.075 * timeout), 100.0)
 
         # Call ipopt - passing the files via the subprocess
         ostreams = [io.StringIO()] + config.tee
