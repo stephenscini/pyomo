@@ -359,9 +359,9 @@ def _initialize_with_piecewise_linear_approximation(
             raise_exception_on_nonoptimal_result=False,
             solver_options=opts,
         )
-        logger.info(f'solved MILP: {res_mip.solution_status}, {res_mip.termination_condition}')
-        if res_mip.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-            res_mip.solution_loader.load_vars()
+        logger.info(f'solved MILP: {res.solution_status}, {res.termination_condition}')
+        if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            res.solution_loader.load_vars()
 
         # load the variable values back into orig_vars
         for ov, nv in zip(orig_vars, new_vars):
