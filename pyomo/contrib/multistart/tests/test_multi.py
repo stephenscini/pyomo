@@ -171,6 +171,14 @@ class MultistartTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SolverFactory('multistart').solve(m, sampling_method="dummy")
 
+    def test_unsupported_solver_type(self):
+        m = ConcreteModel()
+        m.x = Var(bounds=(0, 1))
+        m.obj = Objective(expr=m.x)
+        bad_solver = {"solver": "dummy"}
+        with self.assertRaises(TypeError):
+            SolverFactory('multistart', subsolver=bad_solver).solve(m)
+
     def test_solver_object_matches_solver_string(self):
         nlp_solver = Ipopt()
         solver_str = "ipopt"
@@ -179,12 +187,12 @@ class MultistartTests(unittest.TestCase):
         fresh_model = build_model()
 
         m1 = fresh_model.clone()
-        results_obj_obj = SolverFactory('multistart').solve(
-            m1, subsolver=nlp_solver, seed=seed
+        results_obj_obj = SolverFactory('multistart', subsolver=nlp_solver).solve(
+            m1, seed=seed
         )
         m2 = fresh_model.clone()
-        results_obj_str = SolverFactory('multistart').solve(
-            m2, subsolver=solver_str, seed=seed
+        results_obj_str = SolverFactory('multistart', subsolver=solver_str).solve(
+            m2, seed=seed
         )
         self.assertAlmostEqual(
             results_obj_obj.incumbent_objective, results_obj_str.incumbent_objective
