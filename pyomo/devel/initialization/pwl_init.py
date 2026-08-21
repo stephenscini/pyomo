@@ -235,11 +235,13 @@ def _refine_pwl_approx(
     violations.sort(key=lambda i: i[0], reverse=True)
 
     if len(violations) == 0:
-        raise RuntimeError(
+        logger.warning(
             'We have not found a feasible solution to the problem yet, but the '
             'solution to piecewise linear approximation did not have any violations, '
-            'so there is nothing to refine.'
+            'so there is nothing to refine. Ending refinement loop.'
         )
+        _refined = False
+        return _refined
 
     tol = 1e-5
     if math.isclose(violations[0][0], 0, abs_tol=tol):
@@ -260,6 +262,9 @@ def _refine_pwl_approx(
     for e1, e2 in visitor.substitution.items():
         cons = pwl_expr_to_con_map.pop(e1)
         pwl_expr_to_con_map[e2] = cons
+
+    _refined = True
+    return _refined
 
 
 def _initialize_with_piecewise_linear_approximation(
@@ -336,6 +341,8 @@ def _initialize_with_piecewise_linear_approximation(
                 opts = {'limits/solutions': 1}
             elif isinstance(mip_solver, (GurobiDirectMINLP, GurobiPersistent)):
                 opts = {'SolutionLimit': 1}
+            elif isinstance(mip_solver, Highs):
+                opts = {'mip_max_improving_sols': 1}
             else:
                 raise NotImplementedError(
                     'Currently, the initialization module only works with new solver '
@@ -346,7 +353,7 @@ def _initialize_with_piecewise_linear_approximation(
             opts = {}
 
         # solve the MILP
-        res_mip = mip_solver.solve(
+        res = mip_solver.solve(
             _pwl,
             load_solutions=False,
             raise_exception_on_nonoptimal_result=False,
@@ -371,19 +378,22 @@ def _initialize_with_piecewise_linear_approximation(
             res.solution_loader.load_vars()
             break
 
-        else:
-            # load the variable values back into orig_vars
-            for ov, nv in zip(orig_vars, new_vars):
-                ov.set_value(nv.value, skip_validation=True)
+        # load the variable values back into orig_vars
+        for ov, nv in zip(orig_vars, new_vars):
+            ov.set_value(nv.value, skip_validation=True)
 
-        # refine the PWL approximation
-        _refine_pwl_approx(
+        # refine the PWL approximation, use refined check to decide whether to break
+        refined = _refine_pwl_approx(
             pwl,
             pwl_expr_to_con_map=pwl_expr_to_con_map,
             num_to_refine=num_cons_to_refine_per_iter,
             bounds_tol=bounds_tol,
         )
-        logger.info('refined PWL approximation')
+
+        if refined:
+            logger.info('refined PWL approximation')
+        else:
+            break
 
     if not solved:
         logger.warning('initialization was not successful via PWL approximation')
