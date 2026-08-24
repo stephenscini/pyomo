@@ -35,11 +35,11 @@ def bound_all_nonlinear_variables(m: BlockData, default_bound: float = 1.0e8):
                 v.setub(default_bound)
 
         else:
-            if v.lb < -default_bound and v.ub < default_bound:
-                continue
+            if v.lb is not None and v.ub is not None:
+                if v.lb < -default_bound and v.ub < default_bound:
+                    continue
 
             # If bound is none or outside default bound, set to default
-    
             if v.lb is None or v.lb < -default_bound:
                 logger.debug(
                     f'Could not obtain a lower bound for {str(v)} better than {-default_bound}; setting the lower bound to {-default_bound}'
