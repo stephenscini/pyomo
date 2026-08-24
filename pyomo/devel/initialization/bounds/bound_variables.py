@@ -61,4 +61,4 @@ def bound_all_nonlinear_variables(m: BlockData, default_bound: float = 1.0e8):
         d = min(d, 1e-6)
         v.setlb(v.lb + d)
         v.setub(v.ub - d)
-    fbbt(m)
+    # fbbt(m)
