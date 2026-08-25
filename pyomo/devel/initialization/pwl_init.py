@@ -240,8 +240,7 @@ def _refine_pwl_approx(
             'solution to piecewise linear approximation did not have any violations, '
             'so there is nothing to refine. Ending refinement loop.'
         )
-        _refined = False
-        return _refined
+        return False
 
     tol = 1e-5
     if math.isclose(violations[0][0], 0, abs_tol=tol):
