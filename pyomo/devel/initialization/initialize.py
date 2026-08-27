@@ -18,6 +18,9 @@ from pyomo.devel.initialization.pwl_init import (
 from pyomo.devel.initialization.lp_approx_init import _initialize_with_LP_approximation
 from pyomo.contrib.solver.common.base import SolverBase
 from pyomo.devel.initialization.global_init import _initialize_with_global_solver
+from pyomo.devel.initialization.block_triangular_init import (
+    _initialize_with_block_triangularization,
+)
 from pyomo.contrib.solver.common.factory import SolverFactory
 from pyomo.contrib.solver.common.results import Results
 import logging
@@ -307,6 +310,62 @@ def initialize_with_global_opt(
 
     try:
         res = _initialize_with_global_solver(
+            nlp=nlp, global_solver=global_solver, nlp_solver=nlp_solver
+        )
+    finally:
+        _cleanup(orig_var_data)
+
+    nlp_res = _retry_nlp_solve(nlp, nlp_solver)
+
+    return nlp_res
+
+
+def initialize_with_block_triangularization(
+    nlp: BlockData,
+    nlp_solver: SolverBase | None = None,
+    global_solver: SolverBase | None = None,
+    skip_initial_nlp_solve: bool = False,
+) -> Results:
+    """
+    Attempt to initialize and subsequently solve the model given by ``nlp``.
+    The basic idea is to apply some method to find good initial values for
+    the variables and then try to solve the problem with ``nlp_solver``.
+
+    Parameters
+    ----------
+    nlp: BlockData
+        The pyomo model to be initialized.
+    nlp_solver: Optional[SolverBase]
+        A solver interface appropriate for NLPs.
+        Default: ipopt
+    global_solver: Optional[SolverBase]
+        A solver interface appropriate for global solution of NLPs
+        Default: gurobi_direct_minlp
+    skip_initial_nlp_solve: bool
+        If True, the initial attempt at solving the NLP without initialization
+        will be skipped.
+
+    Returns
+    -------
+    res: pyomo.contrib.solver.common.results.Results
+        The results object obtained the last time the nlp_solver was used to
+        try and solve the model.
+    """
+    if nlp_solver is None:
+        nlp_solver = _get_solver('ipopt', 'local NLP solver')
+
+    if not skip_initial_nlp_solve:
+        res = _try_nlp_solve(nlp, nlp_solver)
+        if res.solution_status == SolutionStatus.optimal:
+            return res
+
+    orig_var_data = _setup(nlp)
+
+    if global_solver is None:
+        global_solver = _get_solver('scip_direct', 'global NLP solver')
+
+    try:
+        res = _initialize_with_block_triangularization(
             nlp=nlp, global_solver=global_solver, nlp_solver=nlp_solver
         )
     finally:
