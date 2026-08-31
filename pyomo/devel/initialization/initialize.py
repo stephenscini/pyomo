@@ -323,8 +323,8 @@ def initialize_with_global_opt(
 def initialize_with_block_triangularization(
     nlp: BlockData,
     nlp_solver: SolverBase | None = None,
-    global_solver: SolverBase | None = None,
     skip_initial_nlp_solve: bool = False,
+    default_bound: float = 1.0e8,
 ) -> Results:
     """
     Attempt to initialize and subsequently solve the model given by ``nlp``.
@@ -338,9 +338,6 @@ def initialize_with_block_triangularization(
     nlp_solver: Optional[SolverBase]
         A solver interface appropriate for NLPs.
         Default: ipopt
-    global_solver: Optional[SolverBase]
-        A solver interface appropriate for global solution of NLPs
-        Default: gurobi_direct_minlp
     skip_initial_nlp_solve: bool
         If True, the initial attempt at solving the NLP without initialization
         will be skipped.
@@ -361,12 +358,9 @@ def initialize_with_block_triangularization(
 
     orig_var_data = _setup(nlp)
 
-    if global_solver is None:
-        global_solver = _get_solver('scip_direct', 'global NLP solver')
-
     try:
         res = _initialize_with_block_triangularization(
-            nlp=nlp, global_solver=global_solver, nlp_solver=nlp_solver
+            nlp=nlp, nlp_solver=nlp_solver
         )
     finally:
         _cleanup(orig_var_data)
