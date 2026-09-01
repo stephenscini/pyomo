@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # Meant to get degrees of freedom to zero automatically, and then initialize with
 # strongly_connected_components like in above framework.
 
+
 # Needs graph analysis
 def _check_matching_and_report_dof(nlp):
 
@@ -48,6 +49,7 @@ def _check_matching_and_report_dof(nlp):
     print(f"The provided model has {degrees_of_freedom} degrees of freedom.")
     return degrees_of_freedom
 
+
 def _solve_blocks_with_scc(nlp, nlp_solver, solver_kw=None):
 
     calc_var_opt = {"linesearch": False}
@@ -56,11 +58,10 @@ def _solve_blocks_with_scc(nlp, nlp_solver, solver_kw=None):
         nlp,
         solver=nlp_solver,
         solve_kwds=solver_kw,
-        calc_var_kwds=calc_var_opt
+        calc_var_kwds=calc_var_opt,
         # use_calc_var=False,
     )
     return res_list
-
 
 
 # Needs dof reduction and value setting (most unknowns)
@@ -70,31 +71,24 @@ def _solve_blocks_with_scc(nlp, nlp_solver, solver_kw=None):
 
 
 def _initialize_with_block_triangularization(nlp: BlockData, nlp_solver: SolverBase):
- 
+
     dof = _check_matching_and_report_dof(nlp)
     # If dof != 0:
-        # find_perfect_matching
-
+    # find_perfect_matching
 
     # Make keywords to share into solver for ssc
-    scc_opts = {
-        "load_solutions": False,
-        "raise_exception_on_nonoptimal_result": False,
-    }
+    scc_opts = {"load_solutions": False, "raise_exception_on_nonoptimal_result": False}
     # Once degrees of freedom is 0, solve nlp with scc
-    res_list = _solve_blocks_with_scc(nlp, 
-                                      nlp_solver=nlp_solver,
-                                      solver_kw=scc_opts,
-
-                                      )
+    res_list = _solve_blocks_with_scc(nlp, nlp_solver=nlp_solver, solver_kw=scc_opts)
     feasible_res_list = []
     for res in res_list:
         if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
             res.solution_loader.load_vars()
             feasible_res_list.append(res)
 
-    print(f"Strongly connected components finished with {len(feasible_res_list)}/{len(res_list)} feasible components.")
+    print(
+        f"Strongly connected components finished with {len(feasible_res_list)}/{len(res_list)} feasible components."
+    )
 
     # Might need to expand more, but for now leaving it here and returning res_list
     return res_list
-

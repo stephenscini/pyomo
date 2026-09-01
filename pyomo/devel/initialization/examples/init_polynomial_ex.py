@@ -52,12 +52,11 @@ def global_init_ex():
 
     return results.solution_status, m.x.value
 
+
 def block_triangular_init_ex():
     m = build_model()
     nlp_solver = SolverFactory('ipopt')
-    results = ini.initialize_with_block_triangularization(
-        nlp=m, nlp_solver=nlp_solver,
-    )
+    results = ini.initialize_with_block_triangularization(nlp=m, nlp_solver=nlp_solver)
 
     return results.solution_status, m.x.value
 

@@ -359,9 +359,7 @@ def initialize_with_block_triangularization(
     orig_var_data = _setup(nlp)
 
     try:
-        res = _initialize_with_block_triangularization(
-            nlp=nlp, nlp_solver=nlp_solver
-        )
+        res = _initialize_with_block_triangularization(nlp=nlp, nlp_solver=nlp_solver)
     finally:
         _cleanup(orig_var_data)
 
