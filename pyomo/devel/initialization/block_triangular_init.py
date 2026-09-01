@@ -15,6 +15,24 @@ from pyomo.contrib.solver.solvers.scip.scip_persistent import ScipPersistent
 from pyomo.contrib.solver.solvers.gurobi.gurobi_direct_minlp import GurobiDirectMINLP
 import logging
 
+# ===========IMPORTS FROM IDAES BLOCK TRIANGULARIZATION====================
+from pyomo.environ import check_optimal_termination
+from pyomo.common.config import Bool, ConfigDict, ConfigValue
+from pyomo.contrib.incidence_analysis import (
+    IncidenceGraphInterface,
+    solve_strongly_connected_components,
+)
+
+# from idaes.core.initialization.initializer_base import (
+#     InitializerBase,
+#     InitializationStatus,
+# )
+# from idaes.core.solvers import get_solver
+# from idaes.core.util.exceptions import InitializationError
+# from idaes.core.util.model_statistics import number_activated_constraints
+# =========================================================================
+
+
 logger = logging.getLogger(__name__)
 
 # Heavily influenced by BlockTriangularizationInitializer in IDAES-PSE
@@ -22,43 +40,61 @@ logger = logging.getLogger(__name__)
 # strongly_connected_components like in above framework.
 
 # Needs graph analysis
+def _check_matching_and_report_dof(nlp):
+
+    igraph = IncidenceGraphInterface(nlp, include_inequality=False)
+    max_matching = igraph.maximum_matching()
+    degrees_of_freedom = len(max_matching) - len(igraph.variables)
+    print(f"The provided model has {degrees_of_freedom} degrees of freedom.")
+    return degrees_of_freedom
+
+def _solve_blocks_with_scc(nlp, nlp_solver, solver_kw=None):
+
+    calc_var_opt = {"linesearch": False}
+
+    res_list = solve_strongly_connected_components(
+        nlp,
+        solver=nlp_solver,
+        solve_kwds=solver_kw,
+        calc_var_kwds=calc_var_opt
+        # use_calc_var=False,
+    )
+    return res_list
+
+
+
 # Needs dof reduction and value setting (most unknowns)
 # Needs matching check for maximum/perfect matching
 # Needs connection to solve_strongly_connected_components
 # Needs try and retry nlp solve outside.
 
 
-def _initialize_with_block_triangularization(
-    nlp: BlockData, global_solver: SolverBase, nlp_solver: SolverBase
-):
-    if isinstance(global_solver, (ScipDirect, ScipPersistent)):
-        opts = {'limits/solutions': 1}
-    elif isinstance(global_solver, (GurobiDirectMINLP,)):
-        opts = {'SolutionLimit': 1}
-    else:
-        raise NotImplementedError(
-            'Currently, the initialization module only works with new solver '
-            'interfaces, so the global solvers are limited to ScipDirect, '
-            'ScipPersistent, and GurobiDirectMINLP.'
-        )
-    # Check if time limit is provided for global solver
-    if global_solver.config.time_limit is None:
-        logger.warning(
-            'No time limit set for global optimizer. '
-            'For a large model, this may take a long time. '
-            'Consider setting a time limit using global_solver.config.time_limit.'
-        )
+def _initialize_with_block_triangularization(nlp: BlockData, nlp_solver: SolverBase):
+ 
+    dof = _check_matching_and_report_dof(nlp)
+    # If dof != 0:
+        # find_perfect_matching
 
-    res = global_solver.solve(
-        nlp,
-        load_solutions=False,
-        raise_exception_on_nonoptimal_result=False,
-        solver_options=opts,
-    )
-    logger.info(
-        f'solved NLP with {global_solver.name}: {res.solution_status}, {res.termination_condition}'
-    )
-    if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
-        res.solution_loader.load_vars()
 
-    return res
+    # Make keywords to share into solver for ssc
+    scc_opts = {
+        "load_solutions": False,
+        "raise_exception_on_nonoptimal_result": False,
+    }
+    # Once degrees of freedom is 0, solve nlp with scc
+    res_list = _solve_blocks_with_scc(nlp, 
+                                      nlp_solver=nlp_solver,
+                                      solver_kw=scc_opts,
+
+                                      )
+    feasible_res_list = []
+    for res in res_list:
+        if res.solution_status in {SolutionStatus.feasible, SolutionStatus.optimal}:
+            res.solution_loader.load_vars()
+            feasible_res_list.append(res)
+
+    print(f"Strongly connected components finished with {len(feasible_res_list)}/{len(res_list)} feasible components.")
+
+    # Might need to expand more, but for now leaving it here and returning res_list
+    return res_list
+
