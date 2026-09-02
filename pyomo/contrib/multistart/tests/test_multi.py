@@ -176,8 +176,19 @@ class MultistartTests(unittest.TestCase):
         m.x = Var(bounds=(0, 1))
         m.obj = Objective(expr=m.x)
         bad_solver = {"solver": "dummy"}
+        # Provided during init
         with self.assertRaises(TypeError):
             SolverFactory('multistart', subsolver=bad_solver).solve(m)
+        # Provided with config
+        with self.assertRaises(TypeError):
+            solver = SolverFactory('multistart')
+            solver.config.subsolver = bad_solver
+            solver.solve(m)
+        # Provided during solve
+        with self.assertRaises(TypeError):
+            solver = SolverFactory('multistart')
+            solver.config.subsolver = bad_solver
+            solver.solve(m)
 
     def test_solver_object_matches_solver_string(self):
         nlp_solver = Ipopt()

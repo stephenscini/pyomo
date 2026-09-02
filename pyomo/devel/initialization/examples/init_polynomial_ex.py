@@ -56,13 +56,13 @@ def global_init_ex():
 def multistart_init_ex():
     m = build_model()
     nlp_solver = SolverFactory('ipopt')
-    multistart_solver = SolverFactory('multistart', subsolver=nlp_solver)
+    multistart_solver = SolverFactory('multistart')
+    multistart_solver.config.subsolver = nlp_solver
 
-    # multistart_solver.config.strategy = "rand"
-    # multistart_solver.config.strategy = "rand_vector"
     # multistart_solver.config.sampling_method = "uniform"
     # multistart_solver.config.sampling_method = "lhs"
-    # multistart_solver.config.sampling_method = "sobol"
+    # multistart_solver.config.sampling_method = "sobol
+
     multistart_solver.config.iterations = 10
     multistart_solver.config.break_on_solution = True
 
