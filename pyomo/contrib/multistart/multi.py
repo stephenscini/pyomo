@@ -24,7 +24,6 @@ from pyomo.common.config import (
 from typing import Any, Optional
 import datetime
 
-import pyomo.environ as pyo
 from pyomo.common.timing import HierarchicalTimer, default_timer
 from pyomo.common.modeling import unique_component_name
 from pyomo.common.dependencies import numpy as np
@@ -84,7 +83,14 @@ class MultistartConfig(SolverConfig):
             """,
             ),
         )
-
+        self.subsolver = self.declare(
+            "subsolver",
+            ConfigValue(
+                default=None,
+                description="solver to use, If none, defaults to ipopt"
+                "Accepts solver names as string or solver objects.",
+            ),
+        )
         self.subsolver_args = self.declare(
             "subsolver_args",
             ConfigValue(
@@ -96,8 +102,8 @@ class MultistartConfig(SolverConfig):
         self.iterations = self.declare(
             "iterations",
             ConfigValue(
-                default=10,
-                description="Specify the number of iterations, defaults to 10. "
+                default=8,
+                description="Specify the number of iterations, defaults to 8. "
                 "If -1 is specified, the high confidence stopping rule will be used",
             ),
         )
@@ -223,33 +229,41 @@ class MultiStart(SolverBase):
 
     CONFIG = MultistartConfig()
 
-    def __init__(self, subsolver="ipopt", **kwds: Any) -> None:
+    def __init__(self, **kwds: Any) -> None:
         super().__init__(**kwds)
 
-        # Create subsolver object to use in available and solve
-        # Define solver using either string input or provided solver object
-        if isinstance(subsolver, str):
-            self._subsolver = SolverFactory(subsolver)
-        elif isinstance(subsolver, SolverBase):
-            self._subsolver = subsolver
-
-        else:
-            raise TypeError(
-                f"Unrecognized subsolver {subsolver} with type{type(subsolver)}."
-                "Accepted subsolvers are either strings for SolverFactory or configured solver objects."
-            )
-
         # Reset defaults for solver settings
+        self._subsolver = None
         self.remaining_time_limit = None
         self._timing_lim = False
 
-    def available(self, exception_flag=True):
+    def _resolve_subsolver(self, subsolver):
+        if subsolver is None:
+            subsolver = "ipopt"
+
+        if isinstance(subsolver, str):
+            solver = SolverFactory(subsolver)
+        elif isinstance(subsolver, SolverBase):
+            solver = subsolver
+        else:
+            raise TypeError(
+                f"Unrecognized subsolver {subsolver} with type {type(subsolver)}. "
+                "Accepted subsolvers are either strings for SolverFactory or configured solver objects."
+            )
+
+        return solver
+
+    def available(self):
         """Check if solver is available.
 
         The multistart solver wrapper should always be available,
         but the subsolver may not. Checking the subsolver availability.
         """
-        return self._subsolver.available()
+        try:
+            solver = self._resolve_subsolver(self.config.subsolver)
+        except TypeError:
+            return False
+        return solver.available()
 
     def version(self):
         """Get solver version."""
@@ -269,6 +283,14 @@ class MultiStart(SolverBase):
         # initialize keyword args
         config = self.config(kwds.pop('options', {}))
         config.set_value(kwds)
+
+        # Resolve subsolver from final config state
+        self._subsolver = self._resolve_subsolver(config.subsolver)
+
+        if not self._subsolver.available():
+            raise RuntimeError(
+                f"Selected subsolver '{self._subsolver.name}' is not available."
+            )
 
         timer = config.timer
         if timer is None:
